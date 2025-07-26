@@ -3,233 +3,321 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Простое Судоку</title>
+    <title>Пинг-Понг: Вызов Машины</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         /* CSS стили */
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Press Start 2P', cursive; /* Применяем пиксельный шрифт */
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background-color: #f4f4f4;
+            background-color: #222;
+            color: #eee;
             margin: 0;
+            overflow: hidden; /* Предотвращает прокрутку */
         }
 
         .container {
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            background-color: #333;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
             text-align: center;
+            border: 2px solid #555;
         }
 
         h1 {
-            color: #333;
+            color: #eee;
+            margin-bottom: 15px;
+            font-size: 2.2em;
+            text-shadow: 2px 2px 5px rgba(0,0,0,0.7);
+        }
+
+        .score {
+            font-size: 2.5em;
             margin-bottom: 20px;
+            color: #0f0; /* Ярко-зеленый цвет для счета */
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
         }
 
-        #sudoku-grid {
-            display: grid;
-            grid-template-columns: repeat(9, 40px);
-            grid-template-rows: repeat(9, 40px);
-            gap: 1px;
-            border: 2px solid #333;
-            width: fit-content;
-            margin: 0 auto 20px auto;
+        #pongCanvas {
+            background-color: #000;
+            border: 3px solid #eee;
+            display: block; /* Убирает лишний отступ под canvas */
+            margin: 0 auto;
         }
 
-        .sudoku-cell {
-            width: 40px;
-            height: 40px;
-            background-color: #eee;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 1.2em;
-            font-weight: bold;
-            border: 1px solid #ccc;
-            box-sizing: border-box;
-        }
-
-        /* Границы для 3x3 блоков */
-        .sudoku-cell:nth-child(3n) {
-            border-right: 2px solid #333;
-        }
-
-        .sudoku-cell:nth-child(9n) {
-            border-right: 1px solid #ccc;
-        }
-
-        .sudoku-cell:nth-child(n+19):nth-child(-n+27),
-        .sudoku-cell:nth-child(n+46):nth-child(-n+54) {
-            border-bottom: 2px solid #333;
-        }
-
-        .sudoku-cell.prefilled {
-            background-color: #ddd;
-            color: #555;
-        }
-
-        .sudoku-cell input {
-            width: 100%;
-            height: 100%;
-            border: none;
-            text-align: center;
-            font-size: 1.2em;
-            font-weight: bold;
-            background-color: transparent;
-            padding: 0;
-            box-sizing: border-box;
-            -moz-appearance: textfield;
-        }
-
-        .sudoku-cell input::-webkit-outer-spin-button,
-        .sudoku-cell input::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-
-        .sudoku-cell input:focus {
-            outline: none;
-            background-color: #e6f7ff;
-        }
-
-        #new-game-button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 1em;
+        #game-message {
             margin-top: 20px;
+            font-size: 1.3em;
+            color: #ff0; /* Желтый цвет для сообщений */
+            min-height: 30px; /* Чтобы сообщение не прыгало */
         }
 
-        #new-game-button:hover {
-            background-color: #45a049;
+        #restart-button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1.1em;
+            margin-top: 20px;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+        }
+
+        #restart-button:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        #restart-button:active {
+            transform: translateY(0);
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Простое Судоку</h1>
-        <div id="sudoku-grid"></div>
-        <button id="new-game-button">Новая игра</button>
+        <h1>Пинг-Понг</h1>
+        <div class="score">
+            <span id="player-score">0</span> - <span id="computer-score">0</span>
+        </div>
+        <canvas id="pongCanvas" width="600" height="400"></canvas>
+        <div id="game-message">Нажмите Пробел для начала!</div>
+        <button id="restart-button" style="display: none;">Играть снова</button>
     </div>
 
     <script>
         // JavaScript код
         document.addEventListener('DOMContentLoaded', () => {
-            const sudokuGrid = document.getElementById('sudoku-grid');
-            const newGameButton = document.getElementById('new-game-button');
+            const canvas = document.getElementById('pongCanvas');
+            const ctx = canvas.getContext('2d');
+            const playerScoreEl = document.getElementById('player-score');
+            const computerScoreEl = document.getElementById('computer-score');
+            const gameMessageEl = document.getElementById('game-message');
+            const restartButton = document.getElementById('restart-button');
 
-            function generateEmptyGrid() {
-                const grid = Array(9).fill(0).map(() => Array(9).fill(0));
-                return grid;
+            const WIDTH = canvas.width;
+            const HEIGHT = canvas.height;
+
+            // Параметры игры
+            const PADDLE_WIDTH = 10;
+            const PADDLE_HEIGHT = 80;
+            const BALL_SIZE = 10;
+            const MAX_SCORE = 5; // Достижение 5 очков для победы/поражения
+
+            let playerScore = 0;
+            let computerScore = 0;
+            let gameRunning = false;
+            let animationFrameId; // Для контроля requestAnimationFrame
+
+            // Объекты игры
+            const player = {
+                x: 0,
+                y: (HEIGHT - PADDLE_HEIGHT) / 2,
+                width: PADDLE_WIDTH,
+                height: PADDLE_HEIGHT,
+                dy: 0 // Скорость движения платформы игрока
+            };
+
+            const computer = {
+                x: WIDTH - PADDLE_WIDTH,
+                y: (HEIGHT - PADDLE_HEIGHT) / 2,
+                width: PADDLE_WIDTH,
+                height: PADDLE_HEIGHT,
+                dy: 4 // Скорость движения платформы компьютера (AI)
+            };
+
+            const ball = {
+                x: WIDTH / 2,
+                y: HEIGHT / 2,
+                size: BALL_SIZE,
+                dx: 5, // Скорость шарика по X
+                dy: 5  // Скорость шарика по Y
+            };
+
+            // --- Функции рисования ---
+            function drawRect(x, y, width, height, color) {
+                ctx.fillStyle = color;
+                ctx.fillRect(x, y, width, height);
             }
 
-            // Простая функция для создания случайного начального поля
-            function fillInitialNumbers(grid, numToFill = 25) {
-                let filledCount = 0;
-                while (filledCount < numToFill) {
-                    const row = Math.floor(Math.random() * 9);
-                    const col = Math.floor(Math.random() * 9);
-                    const num = Math.floor(Math.random() * 9) + 1;
+            function drawBall(x, y, size, color) {
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
 
-                    let isValidPlacement = true;
-                    // Проверка строки
-                    for (let c = 0; c < 9; c++) {
-                        if (grid[row][c] === num) {
-                            isValidPlacement = false;
-                            break;
-                        }
-                    }
-                    if (!isValidPlacement) continue;
+            function draw() {
+                // Очистка холста
+                ctx.clearRect(0, 0, WIDTH, HEIGHT);
+                drawRect(0, 0, WIDTH, HEIGHT, '#000'); // Черный фон
 
-                    // Проверка столбца
-                    for (let r = 0; r < 9; r++) {
-                        if (grid[r][col] === num) {
-                            isValidPlacement = false;
-                            break;
-                        }
-                    }
-                    if (!isValidPlacement) continue;
+                // Разделительная линия
+                for (let i = 0; i < HEIGHT; i += 20) {
+                    drawRect(WIDTH / 2 - 1, i, 2, 10, '#eee');
+                }
 
-                    // Проверка 3x3 блока
-                    const startRow = Math.floor(row / 3) * 3;
-                    const startCol = Math.floor(col / 3) * 3;
-                    for (let r = startRow; r < startRow + 3; r++) {
-                        for (let c = startCol; c < startCol + 3; c++) {
-                            if (grid[r][c] === num) {
-                                isValidPlacement = false;
-                                break;
-                            }
-                        }
-                        if (!isValidPlacement) break;
-                    }
-                    if (!isValidPlacement) continue;
+                // Ракетки
+                drawRect(player.x, player.y, player.width, player.height, '#0f0'); // Игрок: зеленый
+                drawRect(computer.x, computer.y, computer.width, computer.height, '#f00'); // Компьютер: красный
 
-                    if (grid[row][col] === 0 && isValidPlacement) {
-                        grid[row][col] = num;
-                        filledCount++;
+                // Шарик
+                drawBall(ball.x, ball.y, ball.size, '#fff');
+            }
+
+            // --- Обновление логики игры ---
+            function update() {
+                if (!gameRunning) return;
+
+                // Движение шарика
+                ball.x += ball.dx;
+                ball.y += ball.dy;
+
+                // Отскок от верхней/нижней границ
+                if (ball.y - ball.size / 2 < 0 || ball.y + ball.size / 2 > HEIGHT) {
+                    ball.dy *= -1; // Меняем направление по Y
+                }
+
+                // Движение платформы игрока
+                player.y += player.dy;
+                // Ограничение движения платформы игрока в пределах холста
+                if (player.y < 0) player.y = 0;
+                if (player.y + player.height > HEIGHT) player.y = HEIGHT - player.height;
+
+                // Движение платформы компьютера (простой AI)
+                // Если шарик выше центра платформы компьютера, двигаем платформу вверх
+                if (computer.y + computer.height / 2 < ball.y) {
+                    computer.y += computer.dy;
+                } 
+                // Если шарик ниже центра платформы компьютера, двигаем платформу вниз
+                else if (computer.y + computer.height / 2 > ball.y) {
+                    computer.y -= computer.dy;
+                }
+                // Ограничение движения платформы компьютера
+                if (computer.y < 0) computer.y = 0;
+                if (computer.y + computer.height > HEIGHT) computer.y = HEIGHT - computer.height;
+
+                // Отскок от платформ
+                // Отскок от платформы игрока
+                // Проверяем, находится ли шарик в горизонтальном диапазоне платформы игрока
+                // И находится ли он в вертикальном диапазоне платформы игрока
+                if (ball.x - ball.size / 2 < player.x + player.width &&
+                    ball.y + ball.size / 2 > player.y &&
+                    ball.y - ball.size / 2 < player.y + player.height) {
+                    
+                    if (ball.dx < 0) { // Только если шарик движется к игроку
+                        ball.dx *= -1; // Меняем направление по X
+                        // Немного изменяем вертикальную скорость в зависимости от места попадания
+                        ball.dy = (ball.y - (player.y + player.height / 2)) * 0.3;
                     }
                 }
-                return grid;
+
+                // Отскок от платформы компьютера
+                // Проверяем, находится ли шарик в горизонтальном диапазоне платформы компьютера
+                // И находится ли он в вертикальном диапазоне платформы компьютера
+                if (ball.x + ball.size / 2 > computer.x &&
+                    ball.y + ball.size / 2 > computer.y &&
+                    ball.y - ball.size / 2 < computer.y + computer.height) {
+
+                    if (ball.dx > 0) { // Только если шарик движется к компьютеру
+                        ball.dx *= -1; // Меняем направление по X
+                        // Немного изменяем вертикальную скорость
+                        ball.dy = (ball.y - (computer.y + computer.height / 2)) * 0.3;
+                    }
+                }
+
+                // Проверка на забитый гол
+                if (ball.x < 0) { // Шарик ушел за платформу игрока (гол компьютера)
+                    computerScore++;
+                    computerScoreEl.textContent = computerScore;
+                    resetBall();
+                    checkWinCondition();
+                } else if (ball.x > WIDTH) { // Шарик ушел за платформу компьютера (гол игрока)
+                    playerScore++;
+                    playerScoreEl.textContent = playerScore;
+                    resetBall();
+                    checkWinCondition();
+                }
+
+                draw();
+                animationFrameId = requestAnimationFrame(update); // Продолжаем цикл анимации
             }
 
-            function renderGrid(grid) {
-                sudokuGrid.innerHTML = '';
-                for (let r = 0; r < 9; r++) {
-                    for (let c = 0; c < 9; c++) {
-                        const cell = document.createElement('div');
-                        cell.classList.add('sudoku-cell');
+            // --- Управление игрой ---
+            function resetBall() {
+                ball.x = WIDTH / 2;
+                ball.y = HEIGHT / 2;
+                // Случайное начальное направление шарика
+                ball.dx = (Math.random() < 0.5 ? 1 : -1) * 5;
+                ball.dy = (Math.random() < 0.5 ? 1 : -1) * 5;
+            }
 
-                        const value = grid[r][c];
-                        if (value !== 0) {
-                            cell.textContent = value;
-                            cell.classList.add('prefilled');
-                        } else {
-                            const input = document.createElement('input');
-                            input.type = 'number';
-                            input.min = '1';
-                            input.max = '9';
-                            input.maxLength = '1';
-                            input.value = '';
-                            input.dataset.row = r;
-                            input.dataset.col = c;
+            function startGame() {
+                if (!gameRunning) {
+                    playerScore = 0;
+                    computerScore = 0;
+                    playerScoreEl.textContent = playerScore;
+                    computerScoreEl.textContent = computerScore;
+                    gameMessageEl.textContent = ''; // Очищаем сообщение
+                    gameMessageEl.style.color = '#ff0'; // Возвращаем желтый цвет по умолчанию
+                    restartButton.style.display = 'none'; // Скрываем кнопку рестарта
 
-                            input.addEventListener('input', (e) => {
-                                let val = e.target.value.trim();
-                                if (val.length > 1) {
-                                    val = val.slice(0, 1);
-                                }
-                                if (val === '' || (parseInt(val) >= 1 && parseInt(val) <= 9)) {
-                                    e.target.value = val;
-                                } else {
-                                    e.target.value = '';
-                                }
-                            });
-
-                            input.addEventListener('focus', (e) => e.target.select());
-
-                            cell.appendChild(input);
-                        }
-                        sudokuGrid.appendChild(cell);
-                    }
+                    resetBall(); // Сбрасываем положение шарика
+                    gameRunning = true;
+                    // Запускаем цикл анимации игры
+                    animationFrameId = requestAnimationFrame(update);
                 }
             }
 
-            function newGame() {
-                const emptyGrid = generateEmptyGrid();
-                const initialGrid = fillInitialNumbers(emptyGrid, 25);
-                renderGrid(initialGrid);
+            function endGame(winner) {
+                gameRunning = false;
+                cancelAnimationFrame(animationFrameId); // Останавливаем цикл анимации
+                if (winner === 'player') {
+                    gameMessageEl.textContent = 'Вы победили! Поздравляем!';
+                    gameMessageEl.style.color = '#0f0'; // Зеленый цвет для победы
+                } else {
+                    gameMessageEl.textContent = 'Вы проиграли! Попробуйте снова.';
+                    gameMessageEl.style.color = '#f00'; // Красный цвет для поражения
+                }
+                restartButton.style.display = 'block'; // Показываем кнопку "Играть снова"
             }
 
-            newGameButton.addEventListener('click', newGame);
+            function checkWinCondition() {
+                if (playerScore >= MAX_SCORE) {
+                    endGame('player');
+                } else if (computerScore >= MAX_SCORE) {
+                    endGame('computer');
+                }
+            }
 
-            // Запуск игры при загрузке страницы
-            newGame();
+            // --- Обработчики событий ---
+            // Управление движением платформы игрока по нажатию клавиш
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowUp') {
+                    player.dy = -7; // Двигаем вверх
+                } else if (e.key === 'ArrowDown') {
+                    player.dy = 7; // Двигаем вниз
+                } else if (e.key === ' ' && !gameRunning) { // Начинаем игру по пробелу, если она не запущена
+                    startGame();
+                }
+            });
+
+            // Остановка движения платформы игрока при отпускании клавиши
+            document.addEventListener('keyup', (e) => {
+                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                    player.dy = 0; // Остановить движение
+                }
+            });
+
+            // Обработчик для кнопки "Играть снова"
+            restartButton.addEventListener('click', startGame);
+
+            // Первоначальная отрисовка игрового поля при загрузке страницы
+            draw();
         });
     </script>
 </body>
