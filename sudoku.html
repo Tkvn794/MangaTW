@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Простое Судоку</title>
+    <style>
+        /* CSS стили */
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f4f4f4;
+            margin: 0;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        #sudoku-grid {
+            display: grid;
+            grid-template-columns: repeat(9, 40px);
+            grid-template-rows: repeat(9, 40px);
+            gap: 1px;
+            border: 2px solid #333;
+            width: fit-content;
+            margin: 0 auto 20px auto;
+        }
+
+        .sudoku-cell {
+            width: 40px;
+            height: 40px;
+            background-color: #eee;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+
+        /* Границы для 3x3 блоков */
+        .sudoku-cell:nth-child(3n) {
+            border-right: 2px solid #333;
+        }
+
+        .sudoku-cell:nth-child(9n) {
+            border-right: 1px solid #ccc;
+        }
+
+        .sudoku-cell:nth-child(n+19):nth-child(-n+27),
+        .sudoku-cell:nth-child(n+46):nth-child(-n+54) {
+            border-bottom: 2px solid #333;
+        }
+
+        .sudoku-cell.prefilled {
+            background-color: #ddd;
+            color: #555;
+        }
+
+        .sudoku-cell input {
+            width: 100%;
+            height: 100%;
+            border: none;
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            background-color: transparent;
+            padding: 0;
+            box-sizing: border-box;
+            -moz-appearance: textfield;
+        }
+
+        .sudoku-cell input::-webkit-outer-spin-button,
+        .sudoku-cell input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .sudoku-cell input:focus {
+            outline: none;
+            background-color: #e6f7ff;
+        }
+
+        #new-game-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-top: 20px;
+        }
+
+        #new-game-button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Простое Судоку</h1>
+        <div id="sudoku-grid"></div>
+        <button id="new-game-button">Новая игра</button>
+    </div>
+
+    <script>
+        // JavaScript код
+        document.addEventListener('DOMContentLoaded', () => {
+            const sudokuGrid = document.getElementById('sudoku-grid');
+            const newGameButton = document.getElementById('new-game-button');
+
+            function generateEmptyGrid() {
+                const grid = Array(9).fill(0).map(() => Array(9).fill(0));
+                return grid;
+            }
+
+            // Простая функция для создания случайного начального поля
+            function fillInitialNumbers(grid, numToFill = 25) {
+                let filledCount = 0;
+                while (filledCount < numToFill) {
+                    const row = Math.floor(Math.random() * 9);
+                    const col = Math.floor(Math.random() * 9);
+                    const num = Math.floor(Math.random() * 9) + 1;
+
+                    let isValidPlacement = true;
+                    // Проверка строки
+                    for (let c = 0; c < 9; c++) {
+                        if (grid[row][c] === num) {
+                            isValidPlacement = false;
+                            break;
+                        }
+                    }
+                    if (!isValidPlacement) continue;
+
+                    // Проверка столбца
+                    for (let r = 0; r < 9; r++) {
+                        if (grid[r][col] === num) {
+                            isValidPlacement = false;
+                            break;
+                        }
+                    }
+                    if (!isValidPlacement) continue;
+
+                    // Проверка 3x3 блока
+                    const startRow = Math.floor(row / 3) * 3;
+                    const startCol = Math.floor(col / 3) * 3;
+                    for (let r = startRow; r < startRow + 3; r++) {
+                        for (let c = startCol; c < startCol + 3; c++) {
+                            if (grid[r][c] === num) {
+                                isValidPlacement = false;
+                                break;
+                            }
+                        }
+                        if (!isValidPlacement) break;
+                    }
+                    if (!isValidPlacement) continue;
+
+                    if (grid[row][col] === 0 && isValidPlacement) {
+                        grid[row][col] = num;
+                        filledCount++;
+                    }
+                }
+                return grid;
+            }
+
+            function renderGrid(grid) {
+                sudokuGrid.innerHTML = '';
+                for (let r = 0; r < 9; r++) {
+                    for (let c = 0; c < 9; c++) {
+                        const cell = document.createElement('div');
+                        cell.classList.add('sudoku-cell');
+
+                        const value = grid[r][c];
+                        if (value !== 0) {
+                            cell.textContent = value;
+                            cell.classList.add('prefilled');
+                        } else {
+                            const input = document.createElement('input');
+                            input.type = 'number';
+                            input.min = '1';
+                            input.max = '9';
+                            input.maxLength = '1';
+                            input.value = '';
+                            input.dataset.row = r;
+                            input.dataset.col = c;
+
+                            input.addEventListener('input', (e) => {
+                                let val = e.target.value.trim();
+                                if (val.length > 1) {
+                                    val = val.slice(0, 1);
+                                }
+                                if (val === '' || (parseInt(val) >= 1 && parseInt(val) <= 9)) {
+                                    e.target.value = val;
+                                } else {
+                                    e.target.value = '';
+                                }
+                            });
+
+                            input.addEventListener('focus', (e) => e.target.select());
+
+                            cell.appendChild(input);
+                        }
+                        sudokuGrid.appendChild(cell);
+                    }
+                }
+            }
+
+            function newGame() {
+                const emptyGrid = generateEmptyGrid();
+                const initialGrid = fillInitialNumbers(emptyGrid, 25);
+                renderGrid(initialGrid);
+            }
+
+            newGameButton.addEventListener('click', newGame);
+
+            // Запуск игры при загрузке страницы
+            newGame();
+        });
+    </script>
+</body>
+</html>
