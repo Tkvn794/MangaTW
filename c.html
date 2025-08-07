@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тайна Темного Леса</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Georgia', serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a3a, #0d1b2a);
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        #game-container {
+            width: 800px;
+            height: 600px;
+            background: rgba(10, 15, 25, 0.9);
+            border: 3px solid #8b5a2b;
+            border-radius: 15px;
+            box-shadow: 0 0 30px rgba(139, 90, 43, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #game-screen {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        #title-screen, #story-screen, #game-over-screen, #victory-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(10, 15, 25, 0.95);
+            z-index: 10;
+            text-align: center;
+            padding: 30px;
+        }
+        
+        h1 {
+            font-size: 42px;
+            color: #d4af37;
+            text-shadow: 0 0 15px rgba(212, 175, 55, 0.7);
+            margin-bottom: 30px;
+            letter-spacing: 2px;
+        }
+        
+        h2 {
+            font-size: 28px;
+            color: #d4af37;
+            margin: 20px 0;
+            text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+        }
+        
+        p {
+            font-size: 18px;
+            line-height: 1.6;
+            margin: 15px 0;
+            max-width: 700px;
+        }
+        
+        .highlight {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+        
+        .button {
+            background: linear-gradient(to bottom, #8b5a2b, #5d3a1f);
+            color: #fff9c4;
+            border: 2px solid #d4af37;
+            padding: 15px 30px;
+            font-size: 20px;
+            margin: 20px 10px;
+            cursor: pointer;
+            border-radius: 30px;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(139, 90, 43, 0.6);
+            background: linear-gradient(to bottom, #9c6b3c, #6e4a2f);
+        }
+        
+        #game-ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #8b5a2b;
+            z-index: 5;
+        }
+        
+        #player-stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 10px;
+        }
+        
+        .stat {
+            background: rgba(139, 90, 43, 0.3);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 16px;
+        }
+        
+        #location {
+            font-size: 20px;
+            color: #d4af37;
+            margin-top: 10px;
+            text-align: center;
+        }
+        
+        #game-content {
+            position: absolute;
+            top: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            height: 350px;
+            background: rgba(20, 30, 48, 0.8);
+            border: 2px solid #8b5a2b;
+            border-radius: 10px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        #story-text {
+            font-size: 18px;
+            line-height: 1.7;
+            margin-bottom: 20px;
+            min-height: 150px;
+        }
+        
+        #choices {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .choice-button {
+            background: rgba(139, 90, 43, 0.4);
+            color: #e0e0e0;
+            border: 1px solid #8b5a2b;
+            padding: 12px 20px;
+            text-align: left;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+            font-size: 16px;
+        }
+        
+        .choice-button:hover {
+            background: rgba(139, 90, 43, 0.7);
+            transform: translateX(5px);
+        }
+        
+        #inventory {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #8b5a2b;
+            width: 250px;
+        }
+        
+        #inventory h3 {
+            color: #d4af37;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        #inventory-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .item {
+            background: rgba(139, 90, 43, 0.3);
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            border: 1px solid #8b5a2b;
+        }
+        
+        #character {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 150px;
+            height: 200px;
+            background: rgba(20, 30, 48, 0.8);
+            border: 2px solid #8b5a2b;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+        }
+        
+        #character h3 {
+            color: #d4af37;
+            margin-bottom: 15px;
+        }
+        
+        #character-art {
+            width: 100px;
+            height: 120px;
+            background: #5d3a1f;
+            border-radius: 50% 50% 40% 40%;
+            margin-bottom: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #character-art::before {
+            content: "";
+            position: absolute;
+            top: 25px;
+            left: 35px;
+            width: 30px;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 50%;
+        }
+        
+        #character-art::after {
+            content: "";
+            position: absolute;
+            top: 60px;
+            left: 25px;
+            width: 50px;
+            height: 60px;
+            background: #8b5a2b;
+            border-radius: 10px;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .combat {
+            background: rgba(100, 30, 30, 0.3);
+            border: 2px solid #ff6b6b;
+        }
+        
+        .combat #enemy-stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+        }
+        
+        .combat #combat-actions {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .combat .combat-button {
+            background: linear-gradient(to bottom, #c62828, #8e0000);
+            padding: 12px 25px;
+            border: none;
+            border-radius: 30px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .combat .combat-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255, 107, 107, 0.7);
+        }
+        
+        .fade-in {
+            animation: fadeIn 1s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .shake {
+            animation: shake 0.5s;
+        }
+        
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+        
+        .glow {
+            animation: glow 2s infinite alternate;
+        }
+        
+        @keyframes glow {
+            from { box-shadow: 0 0 10px rgba(212, 175, 55, 0.5); }
+            to { box-shadow: 0 0 20px rgba(212, 175, 55, 0.8); }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="game-screen">
+            <!-- Начальный экран -->
+            <div id="title-screen">
+                <h1>ТАЙНА ТЕМНОГО ЛЕСА</h1>
+                <p>РПГ-приключение с элементами магии и тайн</p>
+                <button class="button" onclick="startGame()">Начать приключение</button>
+                <p style="margin-top: 30px; font-size: 16px; color: #8b5a2b;">
+                    Используйте кнопки для выбора действий<br>
+                    Собирайте предметы и развивайте своего персонажа
+                </p>
+            </div>
+            
+            <!-- Экран истории -->
+            <div id="story-screen" class="hidden">
+                <h2>Пролог</h2>
+                <p>Вы - молодой искатель приключений, прибывший в деревню <span class="highlight">Эльдарон</span>. 
+                Жители рассказали вам о древнем артефакте - <span class="highlight">Кристалле Вечности</span>, 
+                спрятанном глубоко в Темном Лесу. Говорят, он обладает силой управлять временем.</p>
+                <p>Но лес полон опасностей - древние существа, магические ловушки и загадки, 
+                которые не под силу разгадать каждому. Сможете ли вы найти Кристалл и вернуться живым?</p>
+                <button class="button" onclick="enterForest()">Войти в Темный Лес</button>
+            </div>
+            
+            <!-- Игровой интерфейс -->
+            <div id="game-ui" class="hidden">
+                <div id="player-stats">
+                    <div class="stat">Здоровье: <span id="health">100</span></div>
+                    <div class="stat">Мана: <span id="mana">50</span></div>
+                    <div class="stat">Уровень: <span id="level">1</span></div>
+                </div>
+                <div id="location">Вход в Темный Лес</div>
+            </div>
+            
+            <div id="game-content" class="hidden">
+                <div id="story-text"></div>
+                <div id="choices"></div>
+                <div id="enemy-stats" class="hidden"></div>
+                <div id="combat-actions" class="hidden"></div>
+            </div>
+            
+            <div id="inventory" class="hidden">
+                <h3>Инвентарь</h3>
+                <div id="inventory-items"></div>
+            </div>
+            
+            <div id="character" class="hidden">
+                <h3>Персонаж</h3>
+                <div id="character-art"></div>
+                <div>Уровень <span id="char-level">1</span></div>
+            </div>
+            
+            <!-- Экран поражения -->
+            <div id="game-over-screen" class="hidden">
+                <h1>ПОРАЖЕНИЕ</h1>
+                <p>Темный Лес оказался слишком опасным для вас...</p>
+                <p>Ваше приключение окончено, но легенда о Кристалле Вечности продолжается.</p>
+                <button class="button" onclick="restartGame()">Начать заново</button>
+            </div>
+            
+            <!-- Экран победы -->
+            <div id="victory-screen" class="hidden">
+                <h1>ПОБЕДА!</h1>
+                <p>Вы нашли <span class="highlight">Кристалл Вечности</span>!</p>
+                <p>С его помощью вы смогли вернуться в деревню и стать легендой Эльдарона.</p>
+                <p>Ваше имя навсегда вписано в историю как того, кто осмелился проникнуть в Темный Лес и выжить!</p>
+                <button class="button" onclick="restartGame()">Играть снова</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Игровые данные
+        const gameState = {
+            health: 100,
+            mana: 50,
+            level: 1,
+            experience: 0,
+            location: "Вход в Темный Лес",
+            inventory: [],
+            currentScene: null,
+            inCombat: false,
+            enemy: null
+        };
+
+        // Сцены игры
+        const scenes = {
+            forestEntrance: {
+                text: "Вы стоите у входа в Темный Лес. Густые деревья сгущаются перед вами, их ветви переплетаются так, что почти полностью закрывают небо. Воздух наполнен таинственными звуками и запахом мха.",
+                choices: [
+                    { text: "Отправиться по главной тропе вглубь леса", action: "goDeeper" },
+                    { text: "Исследовать боковую тропу, ведущую к руинам", action: "exploreRuins" },
+                    { text: "Проверить свои припасы перед входом", action: "checkSupplies" }
+                ]
+            },
+            deeperForest: {
+                text: "Вы углубляетесь в лес. Деревья становятся выше, а тени гуще. Внезапно вы замечаете странные следы на земле - они не похожи ни на какие животные, которых вы знаете.",
+                choices: [
+                    { text: "Следовать по следам", action: "followTracks" },
+                    { text: "Обойти следы стороной", action: "avoidTracks" },
+                    { text: "Изучить следы внимательнее", action: "examineTracks" }
+                ]
+            },
+            ruins: {
+                text: "Вы подходите к древним руинам, полуразрушенным каменным строениям, покрытым мхом. В центре руин стоит алтарь с вырезанными символами. Воздух вокруг вибрирует от магической энергии.",
+                choices: [
+                    { text: "Подойти к алтарю", action: "approachAltar" },
+                    { text: "Осмотреть руины", action: "exploreTemple" },
+                    { text: "Покинуть руины", action: "leaveRuins" }
+                ]
+            },
+            supplies: {
+                text: "Вы проверяете свои припасы: немного еды, фляга с водой, небольшой нож и карта местности. Карта показывает, что где-то в центре леса находится древний храм.",
+                choices: [
+                    { text: "Использовать еду (восстановить здоровье)", action: "useFood" },
+                    { text: "Изучить карту", action: "studyMap" },
+                    { text: "Продолжить путь", action: "goDeeper" }
+                ]
+            },
+            tracks: {
+                text: "Следы ведут вас к небольшой поляне. В центре поляны стоит старый дуб, а под ним сидит лиса с серебристой шерстью. Ее глаза светятся голубым светом.",
+                choices: [
+                    { text: "Подойти к лисе", action: "approachFox" },
+                    { text: "Наблюдать издалека", action: "observeFox" },
+                    { text: "Попытаться заговорить с лисой", action: "talkToFox" }
+                ]
+            },
+            avoidTracks: {
+                text: "Вы решаете обойти следы стороной. Пройдя немного в сторону, вы находите небольшую пещеру. Вход в нее полузавален камнями, но внутри слышится странное эхо.",
+                choices: [
+                    { text: "Попытаться проникнуть в пещеру", action: "enterCave" },
+                    { text: "Осмотреть вход в пещеру", action: "examineCave" },
+                    { text: "Продолжить путь в обход", action: "continuePath" }
+                ]
+            },
+            examineTracks: {
+                text: "Вы внимательно изучаете следы. Они принадлежат существу среднего размера с когтями. Похоже, оно двигалось быстро и недавно. Следы ведут к руинам, которые вы заметили ранее.",
+                choices: [
+                    { text: "Следовать по следам к руинам", action: "tracksToRuins" },
+                    { text: "Продолжить свой путь", action: "goDeeper" }
+                ]
+            },
+            altar: {
+                text: "Подойдя к алтарю, вы чувствуете, как магическая энергия усиливается. На алтаре лежит сверкающий амулет. Когда вы берете его, в вашем сознании появляется видение древнего храма глубоко в лесу.",
+                choices: [
+                    { text: "Взять амулет", action: "takeAmulet" },
+                    { text: "Оставить амулет и уйти", action: "leaveAmulet" }
+                ]
+            },
+            temple: {
+                text: "Осмотрев руины, вы находите скрытый проход за обвалившимся камнем. За проходом тянется узкий коридор, ведущий вглубь земли. Воздух становится прохладнее, а стены покрыты древними письменами.",
+                choices: [
+                    { text: "Пройти по коридору", action: "enterCorridor" },
+                    { text: "Изучить письмена", action: "readInscriptions" },
+                    { text: "Вернуться к алтарю", action: "approachAltar" }
+                ]
+            },
+            fox: {
+                text: "Лиса поднимается и смотрит на вас своими светящимися глазами. Внезапно она начинает говорить человеческим голосом: \"Искатель приключений, ты идешь по опасному пути. Кристалл Вечности охраняется древним духом. Ты должен доказать свою добродетель, чтобы получить его.\"",
+                choices: [
+                    { text: "Спросить, как доказать добродетель", action: "askVirtue" },
+                    { text: "Сказать, что вы готовы к испытаниям", action: "acceptChallenge" },
+                    { text: "Попытаться убежать", action: "runFromFox" }
+                ]
+            },
+            cave: {
+                text: "Вы входите в пещеру. Внутри темно, но ваше прикосновение к амулету освещает путь. В центре пещеры находится кристалл, излучающий мягкое синее свечение. Рядом лежит древний свиток.",
+                choices: [
+                    { text: "Взять кристалл", action: "takeCrystal" },
+                    { text: "Прочитать свиток", action: "readScroll" },
+                    { text: "Осмотреть пещеру", action: "exploreCave" }
+                ]
+            },
+            corridor: {
+                text: "Вы проходите по коридору. Письмена на стенах рассказывают историю древнего мага, который спрятал Кристалл Вечности, чтобы защитить мир от тех, кто хочет использовать его во зло. В конце коридора вы видите дверь с магическими символами.",
+                choices: [
+                    { text: "Открыть дверь", action: "openDoor" },
+                    { text: "Попытаться разгадать символы", action: "decodeSymbols" },
+                    { text: "Вернуться назад", action: "returnToRuins" }
+                ]
+            }
+        };
+
+        // Враги
+        const enemies = {
+            forestGuardian: {
+                name: "Хранитель Леса",
+                health: 80,
+                maxHealth: 80,
+                attack: 15,
+                defense: 5
+            },
+            shadowBeast: {
+                name: "Теневое Существо",
+                health: 60,
+                maxHealth: 60,
+                attack: 20,
+                defense: 3
+            },
+            ancientSpirit: {
+                name: "Древний Дух",
+                health: 120,
+                maxHealth: 120,
+                attack: 25,
+                defense: 10
+            }
+        };
+
+        // Предметы
+        const items = {
+            amulet: { name: "Амулет Провидца", description: "Позволяет видеть скрытые пути" },
+            crystal: { name: "Кристалл Силы", description: "Увеличивает магическую силу" },
+            scroll: { name: "Свиток Знаний", description: "Открывает древние тайны" },
+            food: { name: "Сухой паек", description: "Восстанавливает здоровье" }
+        };
+
+        // Функции игры
+        function startGame() {
+            document.getElementById('title-screen').classList.add('hidden');
+            document.getElementById('story-screen').classList.remove('hidden');
+        }
+
+        function enterForest() {
+            document.getElementById('story-screen').classList.add('hidden');
+            document.getElementById('game-ui').classList.remove('hidden');
+            document.getElementById('game-content').classList.remove('hidden');
+            document.getElementById('inventory').classList.remove('hidden');
+            document.getElementById('character').classList.remove('hidden');
+            
+            gameState.currentScene = "forestEntrance";
+            updateScene();
+        }
+
+        function updateScene() {
+            const scene = scenes[gameState.currentScene];
+            if (!scene) return;
+            
+            document.getElementById('story-text').innerHTML = scene.text;
+            document.getElementById('location').textContent = gameState.location;
+            document.getElementById('health').textContent = gameState.health;
+            document.getElementById('mana').textContent = gameState.mana;
+            document.getElementById('level').textContent = gameState.level;
+            document.getElementById('char-level').textContent = gameState.level;
+            
+            updateInventory();
+            
+            const choicesContainer = document.getElementById('choices');
+            choicesContainer.innerHTML = '';
+            
+            scene.choices.forEach(choice => {
+                const button = document.createElement('button');
+                button.className = 'choice-button';
+                button.textContent = choice.text;
+                button.onclick = () => executeAction(choice.action);
+                choicesContainer.appendChild(button);
+            });
+            
+            // Убираем боевой интерфейс, если не в бою
+            if (!gameState.inCombat) {
+                document.getElementById('enemy-stats').classList.add('hidden');
+                document.getElementById('combat-actions').classList.add('hidden');
+                document.getElementById('game-content').classList.remove('combat');
+            }
+        }
+
+        function updateInventory() {
+            const inventoryContainer = document.getElementById('inventory-items');
+            inventoryContainer.innerHTML = '';
+            
+            if (gameState.inventory.length === 0) {
+                inventoryContainer.innerHTML = '<div class="item">Пусто</div>';
+                return;
+            }
+            
+            gameState.inventory.forEach(itemKey => {
+                const item = items[itemKey];
+                if (item) {
+                    const itemElement = document.createElement('div');
+                    itemElement.className = 'item';
+                    itemElement.textContent = item.name;
+                    itemElement.title = item.description;
+                    inventoryContainer.appendChild(itemElement);
+                }
+            });
+        }
+
+        function executeAction(action) {
+            switch(action) {
+                case "goDeeper":
+                    gameState.location = "Глубина Леса";
+                    gameState.currentScene = "deeperForest";
+                    break;
+                    
+                case "exploreRuins":
+                    gameState.location = "Древние Руины";
+                    gameState.currentScene = "ruins";
+                    break;
+                    
+                case "checkSupplies":
+                    gameState.location = "У Входа в Лес";
+                    gameState.currentScene = "supplies";
+                    break;
+                    
+                case "followTracks":
+                    gameState.location = "Поляна с Лисой";
+                    gameState.currentScene = "tracks";
+                    break;
+                    
+                case "avoidTracks":
+                    gameState.location = "У Пещеры";
+                    gameState.currentScene = "avoidTracks";
+                    break;
+                    
+                case "examineTracks":
+                    gameState.location = "У Входа в Руины";
+                    gameState.currentScene = "examineTracks";
+                    break;
+                    
+                case "approachAltar":
+                    gameState.location = "У Алтаря";
+                    gameState.currentScene = "altar";
+                    break;
+                    
+                case "exploreTemple":
+                    gameState.location = "Подземный Коридор";
+                    gameState.currentScene = "temple";
+                    break;
+                    
+                case "leaveRuins":
+                    gameState.location = "Глубина Леса";
+                    gameState.currentScene = "deeperForest";
+                    break;
+                    
+                case "approachFox":
+                    gameState.location = "Поляна с Лисой";
+                    gameState.currentScene = "fox";
+                    break;
+                    
+                case "observeFox":
+                    gameState.location = "Поляна с Лисой";
+                    gameState.currentScene = "fox";
+                    break;
+                    
+                case "talkToFox":
+                    gameState.location = "Поляна с Лисой";
+                    gameState.currentScene = "fox";
+                    break;
+                    
+                case "enterCave":
+                    gameState.location = "Таинственная Пещера";
+                    gameState.currentScene = "cave";
+                    break;
+                    
+                case "examineCave":
+                    gameState.location = "У Входа в Пещеру";
+                    gameState.currentScene = "cave";
+                    break;
+                    
+                case "continuePath":
+                    gameState.location = "Глубина Леса";
+                    gameState.currentScene = "deeperForest";
+                    break;
+                    
+                case "tracksToRuins":
+                    gameState.location = "Древние Руины";
+                    gameState.currentScene = "ruins";
+                    break;
+                    
+                case "takeAmulet":
+                    if (!gameState.inventory.includes("amulet")) {
+                        gameState.inventory.push("amulet");
+                        addExperience(50);
+                    }
+                    gameState.location = "У Алтаря";
+                    gameState.currentScene = "temple";
+                    break;
+                    
+                case "leaveAmulet":
+                    gameState.location = "Древние Руины";
+                    gameState.currentScene = "ruins";
+                    break;
+                    
+                case "enterCorridor":
+                    gameState.location = "Подземный Коридор";
+                    gameState.currentScene = "corridor";
+                    break;
+                    
+                case "readInscriptions":
+                    addExperience(30);
+                    gameState.location = "Подземный Коридор";
+                    gameState.currentScene = "corridor";
+                    break;
+                    
+                case "returnToRuins":
+                    gameState.location = "Древние Руины";
+                    gameState.currentScene = "ruins";
+                    break;
+                    
+                case "askVirtue":
+                    gameState.location = "Поляна с Лисой";
+                    startCombat("forestGuardian");
+                    break;
+                    
+                case "acceptChallenge":
+                    gameState.location = "Поляна с Лисой";
+                    startCombat("forestGuardian");
+                    break;
+                    
+                case "runFromFox":
+                    gameState.health -= 20;
+                    if (gameState.health <= 0) {
+                        gameOver();
+                        return;
+                    }
+                    gameState.location = "Глубина Леса";
+                    gameState.currentScene = "deeperForest";
+                    break;
+                    
+                case "takeCrystal":
+                    if (!gameState.inventory.includes("crystal")) {
+                        gameState.inventory.push("crystal");
+                        addExperience(70);
+                        gameState.mana += 30;
+                    }
+                    gameState.location = "Таинственная Пещера";
+                    gameState.currentScene = "cave";
+                    break;
+                    
+                case "readScroll":
+                    addExperience(40);
+                    gameState.location = "Таинственная Пещера";
+                    gameState.currentScene = "cave";
+                    break;
+                    
+                case "exploreCave":
+                    gameState.location = "Таинственная Пещера";
+                    gameState.currentScene = "cave";
+                    break;
+                    
+                case "openDoor":
+                    if (gameState.inventory.includes("amulet")) {
+                        victory();
+                    } else {
+                        startCombat("ancientSpirit");
+                    }
+                    break;
+                    
+                case "decodeSymbols":
+                    if (gameState.inventory.includes("scroll")) {
+                        addExperience(60);
+                        victory();
+                    } else {
+                        startCombat("shadowBeast");
+                    }
+                    break;
+                    
+                case "useFood":
+                    gameState.health = Math.min(100, gameState.health + 30);
+                    updateScene();
+                    return;
+                    
+                case "studyMap":
+                    addExperience(20);
+                    updateScene();
+                    return;
+                    
+                default:
+                    console.log("Неизвестное действие:", action);
+                    return;
+            }
+            
+            updateScene();
+        }
+
+        function startCombat(enemyKey) {
+            gameState.inCombat = true;
+            gameState.enemy = { ...enemies[enemyKey] };
+            
+            document.getElementById('game-content').classList.add('combat');
+            document.getElementById('enemy-stats').classList.remove('hidden');
+            document.getElementById('combat-actions').classList.remove('hidden');
+            
+            updateCombatUI();
+        }
+
+        function updateCombatUI() {
+            if (!gameState.inCombat) return;
+            
+            const enemyStats = document.getElementById('enemy-stats');
+            enemyStats.innerHTML = `
+                <div><strong>${gameState.enemy.name}</strong></div>
+                <div>Здоровье: ${gameState.enemy.health}/${gameState.enemy.maxHealth}</div>
+                <div>Атака: ${gameState.enemy.attack}</div>
+            `;
+            
+            const combatActions = document.getElementById('combat-actions');
+            combatActions.innerHTML = `
+                <button class="combat-button" onclick="playerAttack()">Атаковать</button>
+                <button class="combat-button" onclick="playerMagic()">Магия</button>
+                <button class="combat-button" onclick="playerDefend()">Защита</button>
+                <button class="combat-button" onclick="tryToFlee()">Побег</button>
+            `;
+            
+            document.getElementById('story-text').innerHTML = 
+                `<p>Вы вступили в бой с <span class="highlight">${gameState.enemy.name}</span>!</p>
+                <p>Выберите действие:</p>`;
+        }
+
+        function playerAttack() {
+            if (!gameState.inCombat) return;
+            
+            const damage = Math.floor(Math.random() * 20) + 10 + gameState.level * 2;
+            gameState.enemy.health -= damage;
+            
+            document.getElementById('story-text').innerHTML += 
+                `<p class="fade-in">Вы нанесли ${damage} урона ${gameState.enemy.name}!</p>`;
+            
+            if (gameState.enemy.health <= 0) {
+                endCombat(true);
+                return;
+            }
+            
+            enemyAttack();
+        }
+
+        function playerMagic() {
+            if (!gameState.inCombat) return;
+            
+            if (gameState.mana < 10) {
+                document.getElementById('story-text').innerHTML += 
+                    `<p class="fade-in">Недостаточно маны для заклинания!</p>`;
+                enemyAttack();
+                return;
+            }
+            
+            gameState.mana -= 10;
+            const damage = Math.floor(Math.random() * 25) + 15 + gameState.level * 3;
+            gameState.enemy.health -= damage;
+            
+            document.getElementById('story-text').innerHTML += 
+                `<p class="fade-in">Вы использовали магию и нанесли ${damage} урона ${gameState.enemy.name}!</p>`;
+            
+            if (gameState.enemy.health <= 0) {
+                endCombat(true);
+                return;
+            }
+            
+            enemyAttack();
+        }
+
+        function playerDefend() {
+            if (!gameState.inCombat) return;
+            
+            document.getElementById('story-text').innerHTML += 
+                `<p class="fade-in">Вы встали в защитную стойку. Урон будет уменьшен!</p>`;
+            
+            enemyAttack(true);
+        }
+
+        function tryToFlee() {
+            if (!gameState.inCombat) return;
+            
+            if (Math.random() > 0.3) {
+                document.getElementById('story-text').innerHTML += 
+                    `<p class="fade-in">Вы успешно сбежали от боя!</p>`;
+                endCombat(false);
+            } else {
+                document.getElementById('story-text').innerHTML += 
+                    `<p class="fade-in">Побег не удался!</p>`;
+                enemyAttack();
+            }
+        }
+
+        function enemyAttack(defending = false) {
+            if (!gameState.inCombat) return;
+            
+            let damage = Math.floor(Math.random() * gameState.enemy.attack) + 5;
+            
+            if (defending) {
+                damage = Math.max(1, Math.floor(damage * 0.5));
+            }
+            
+            gameState.health -= damage;
+            document.getElementById('health').textContent = gameState.health;
+            
+            document.getElementById('story-text').innerHTML += 
+                `<p class="fade-in">${gameState.enemy.name} нанес вам ${damage} урона!</p>`;
+            
+            if (gameState.health <= 0) {
+                gameOver();
+                return;
+            }
+            
+            updateCombatUI();
+        }
+
+        function endCombat(victory) {
+            gameState.inCombat = false;
+            
+            if (victory) {
+                addExperience(100);
+                document.getElementById('story-text').innerHTML += 
+                    `<p class="fade-in">Вы победили ${gameState.enemy.name}!</p>`;
+                
+                // Добавляем случайный предмет после победы
+                const itemKeys = Object.keys(items);
+                const randomItem = itemKeys[Math.floor(Math.random() * itemKeys.length)];
+                
+                if (!gameState.inventory.includes(randomItem)) {
+                    gameState.inventory.push(randomItem);
+                    document.getElementById('story-text').innerHTML += 
+                        `<p class="fade-in">Вы получили: ${items[randomItem].name}!</p>`;
+                }
+            }
+            
+            // Через 2 секунды возвращаемся к обычному интерфейсу
+            setTimeout(() => {
+                updateScene();
+            }, 2000);
+        }
+
+        function addExperience(exp) {
+            gameState.experience += exp;
+            const expForNextLevel = gameState.level * 100;
+            
+            if (gameState.experience >= expForNextLevel) {
+                gameState.level++;
+                gameState.experience = 0;
+                gameState.health = 100;
+                gameState.mana = 50 + gameState.level * 10;
+                
+                document.getElementById('story-text').innerHTML += 
+                    `<p class="fade-in glow">Поздравляем! Вы достигли уровня ${gameState.level}!</p>`;
+            }
+        }
+
+        function gameOver() {
+            document.getElementById('game-ui').classList.add('hidden');
+            document.getElementById('game-content').classList.add('hidden');
+            document.getElementById('inventory').classList.add('hidden');
+            document.getElementById('character').classList.add('hidden');
+            document.getElementById('game-over-screen').classList.remove('hidden');
+        }
+
+        function victory() {
+            document.getElementById('game-ui').classList.add('hidden');
+            document.getElementById('game-content').classList.add('hidden');
+            document.getElementById('inventory').classList.add('hidden');
+            document.getElementById('character').classList.add('hidden');
+            document.getElementById('victory-screen').classList.remove('hidden');
+        }
+
+        function restartGame() {
+            // Сброс игрового состояния
+            gameState.health = 100;
+            gameState.mana = 50;
+            gameState.level = 1;
+            gameState.experience = 0;
+            gameState.location = "Вход в Темный Лес";
+            gameState.inventory = [];
+            gameState.currentScene = null;
+            gameState.inCombat = false;
+            gameState.enemy = null;
+            
+            // Скрытие всех экранов
+            document.getElementById('game-over-screen').classList.add('hidden');
+            document.getElementById('victory-screen').classList.add('hidden');
+            
+            // Показ начального экрана
+            document.getElementById('title-screen').classList.remove('hidden');
+        }
+
+        // Добавляем анимации элементам
+        document.addEventListener('DOMContentLoaded', function() {
+            const buttons = document.querySelectorAll('.button, .choice-button, .combat-button');
+            buttons.forEach(button => {
+                button.addEventListener('mouseenter', function() {
+                    this.classList.add('glow');
+                });
+                button.addEventListener('mouseleave', function() {
+                    this.classList.remove('glow');
+                });
+            });
+        });
+    </script>
+</body>
+</html>
