@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Говорящий дракон</title>
+<style>
+  :root{
+    --bg:#0f1724;
+    --panel:#0b1220;
+    --accent:#ffb86b;
+    --muted:#9aa7b2;
+  }
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial;background:linear-gradient(180deg,#081223,var(--bg));color:#e6f0f6}
+  .wrap{max-width:980px;margin:24px auto;padding:20px;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);border-radius:14px;box-shadow:0 6px 30px rgba(0,0,0,0.6)}
+  h1{margin:0 0 12px;font-size:20px}
+  .stage{display:flex;gap:20px;align-items:center}
+  .dragon-area{flex:1;min-height:360px;background:linear-gradient(180deg,#081827,#06202a);border-radius:12px;padding:18px;position:relative;overflow:hidden}
+  .controls{width:320px;padding:12px;background:var(--panel);border-radius:10px;display:flex;flex-direction:column;gap:10px}
+  button{background:linear-gradient(180deg,#1b6a8a,#0f4a66);color:white;border:0;padding:10px;border-radius:8px;cursor:pointer;font-weight:600}
+  button.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);font-weight:500}
+  .small{padding:8px;font-size:14px}
+  label{font-size:13px;color:var(--muted)}
+  input[type="text"]{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.05);background:transparent;color:inherit}
+  .status{font-size:13px;color:var(--muted);min-height:20px}
+  /* Dragon (SVG container) */
+  .dragon{width:340px;height:340px;margin:0 auto;touch-action:none;user-select:none;cursor:grab}
+  .dragon.dragging{cursor:grabbing}
+  /* simple floating */
+  .float { animation:float 3s ease-in-out infinite; transform-origin:center; }
+  @keyframes float { 0%{transform:translateY(0)}50%{transform:translateY(-8px)}100%{transform:translateY(0)} }
+  /* mouth animation: scaleY */
+  .mouth { transform-origin:center top; transition: transform 0.05s linear; }
+  .mouth.open { transform:scaleY(1.1) translateY(2px); }
+  /* particle (food) */
+  .food{position:absolute;width:36px;height:36px;border-radius:50%;background:linear-gradient(180deg,#ffd28a,#ff8c4b);box-shadow:0 6px 18px rgba(255,140,75,0.25);right:18px;bottom:18px;display:flex;align-items:center;justify-content:center;font-weight:700;color:#642700}
+  .bubble{position:absolute;left:10px;top:10px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.06);font-size:13px}
+  .eyes-blink{animation:blink 6s infinite}
+  @keyframes blink{0%,95%,100%{transform:scaleY(1)}96%{transform:scaleY(0.06)}}
+  footer{margin-top:14px;font-size:13px;color:var(--muted);text-align:center}
+  .row{display:flex;gap:8px}
+  .action-btn{flex:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Говорящий дракон 🐉</h1>
+  <div class="stage">
+    <div class="dragon-area">
+      <div class="bubble" id="thought">Привет! Погладь меня или скажи что-нибудь.</div>
+      <!-- SVG дракона -->
+      <div id="dragon" class="dragon float" role="img" aria-label="Говорящий дракон">
+        <svg viewBox="0 0 300 300" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+          <!-- body -->
+          <g transform="translate(20,20)">
+            <ellipse cx="140" cy="170" rx="100" ry="60" fill="#2a9d8f" />
+            <ellipse cx="120" cy="130" rx="80" ry="60" fill="#34b099" />
+            <!-- wing -->
+            <path d="M70 110 C 10 40, 150 20, 170 100 C150 95, 120 120, 70 110" fill="#1f7a6a" opacity="0.95"/>
+            <!-- head -->
+            <g id="head" transform="translate(150,40)">
+              <ellipse cx="0" cy="0" rx="42" ry="36" fill="#34b099" />
+              <!-- eye -->
+              <g transform="translate(-10,-6)">
+                <ellipse cx="0" cy="0" rx="9" ry="11" fill="#fff"/>
+                <ellipse cx="-1" cy="-1" rx="4" ry="5" fill="#04222a" class="eyes-blink"/>
+              </g>
+              <!-- nostril -->
+              <ellipse cx="12" cy="4" rx="5" ry="3" fill="#2a7b6e" />
+              <!-- mouth group -->
+              <g id="mouth" class="mouth" transform="translate(-8,14)">
+                <path d="M -28 4 Q -8 18 12 4 Q -8 30 -28 4" fill="#6a1f09"/>
+                <path d="M -24 8 Q -8 22 8 8" fill="#ffb1a1"/>
+              </g>
+
+              <!-- horn -->
+              <path d="M -24 -28 L -34 -48 L -14 -44 Z" fill="#ffd27a"/>
+            </g>
+
+            <!-- tail -->
+            <path d="M230 170 C260 150,280 120,260 100 C240 80,210 110,200 120" fill="#2a9d8f"/>
+            <!-- spikes -->
+            <g fill="#ffd27a">
+              <polygon points="60,80 72,56 84,80" />
+              <polygon points="100,60 116,36 132,60" />
+              <polygon points="150,52 168,28 186,52" />
+            </g>
+          </g>
+        </svg>
+      </div>
+
+      <div class="food" id="foodBtn" title="Покормить">🍖</div>
+    </div>
+
+    <div class="controls">
+      <label>Голосовое повтора (микрофон)</label>
+      <div class="row">
+        <button id="recBtn" class="action-btn small">🎤 Начать запись</button>
+        <button id="stopRecBtn" class="action-btn small secondary">⏹ Остановить</button>
+      </div>
+      <div class="row">
+        <button id="speakTextBtn" class="small">💬 Говорит (текст)</button>
+        <input id="textInput" type="text" placeholder="Напиши текст или оставь пустым" />
+      </div>
+      <label>Эмоции и игры</label>
+      <div class="row">
+        <button id="petBtn" class="small action-btn">🤗 Погладить</button>
+        <button id="playBtn" class="small action-btn">🎲 Играть</button>
+      </div>
+      <div class="row">
+        <button id="repeatBtn" class="small action-btn">🔁 Повторить (текст)</button>
+        <button id="roarBtn" class="small action-btn">🔥 Рёв</button>
+      </div>
+
+      <div class="status" id="status">Статус: готов</div>
+      <div style="height:6px"></div>
+      <label>Подсказки</label>
+      <div style="font-size:13px;color:var(--muted)">
+        Поддержка распознавания речи зависит от браузера (Chrome/Edge — лучше). Разреши микрофон.
+      </div>
+    </div>
+  </div>
+
+  <footer>Копируй/модифицируй — сделано на HTML/JS. Удачи! 🐲</footer>
+</div>
+
+<script>
+/* --- Простая логика интерактива --- */
+const dragon = document.getElementById('dragon');
+const mouth = document.getElementById('mouth');
+const thought = document.getElementById('thought');
+const status = document.getElementById('status');
+const recBtn = document.getElementById('recBtn');
+const stopRecBtn = document.getElementById('stopRecBtn');
+const textInput = document.getElementById('textInput');
+const speakTextBtn = document.getElementById('speakTextBtn');
+const repeatBtn = document.getElementById('repeatBtn');
+const roarBtn = document.getElementById('roarBtn');
+const petBtn = document.getElementById('petBtn');
+const playBtn = document.getElementById('playBtn');
+const foodBtn = document.getElementById('foodBtn');
+
+let recognition=null;
+let lastTranscript = '';
+let speaking = false;
+let mouthInterval = null;
+
+/* ---- SpeechRecognition setup (если доступен) ---- */
+function initRecognition(){
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SpeechRecognition) {
+    status.textContent = 'Статус: распознавание речи недоступно в этом браузере.';
+    recBtn.disabled = true;
+    stopRecBtn.disabled = true;
+    return;
+  }
+  recognition = new SpeechRecognition();
+  recognition.lang = 'ru-RU';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = () => {
+    status.textContent = 'Статус: слушаю...';
+    recBtn.disabled = true;
+    stopRecBtn.disabled = false;
+    thought.textContent = '...';
+  };
+  recognition.onresult = (ev) => {
+    const text = ev.results[0][0].transcript;
+    lastTranscript = text;
+    thought.textContent = 'Ты сказал: "'+text+'"';
+    // сразу повторяем
+    speakText(text, {dragonify:true});
+  };
+  recognition.onerror = (e) => {
+    status.textContent = 'Ошибка распознавания: ' + (e.error || e.message);
+  };
+  recognition.onend = () => {
+    recBtn.disabled = false;
+    stopRecBtn.disabled = true;
+    if(!speaking) status.textContent = 'Статус: готов';
+  };
+}
+
+initRecognition();
+
+/* ---- speechSynthesis wrapper ---- */
+function speakText(text, opts){
+  if(!text) {
+    status.textContent = 'Нечего говорить.';
+    return;
+  }
+  if(speaking) return;
+  const ut = new SpeechSynthesisUtterance(text);
+  ut.lang = 'ru-RU';
+  // делаем "драконью" подачу: ниже скорость и немного низкий pitch через voice selection where possible
+  ut.rate = opts && opts.rate ? opts.rate : 0.9;
+  ut.pitch = opts && opts.pitch ? opts.pitch : 0.6;
+  // попытка выбрать более глубокий голос
+  const voices = speechSynthesis.getVoices();
+  if(voices && voices.length){
+    // выбираем голос с ru или любой male-ish
+    let v = voices.find(v=>v.lang.startsWith('ru')) || voices[0];
+    ut.voice = v;
+  }
+  ut.onstart = () => {
+    speaking = true;
+    status.textContent = 'Дракон говорит...';
+    startMouthAnimation();
+  };
+  ut.onend = () => {
+    speaking = false;
+    stopMouthAnimation();
+    status.textContent = 'Статус: готов';
+  };
+  // slight transform: if dragonify, add "роар" prefix/suffix
+  if(opts && opts.dragonify){
+    ut.text = 'Хррр... ' + text;
+  }
+  speechSynthesis.speak(ut);
+}
+
+/* mouth animation during speech */
+function startMouthAnimation(){
+  mouth.classList.add('open');
+  if(mouthInterval) clearInterval(mouthInterval);
+  mouthInterval = setInterval(()=>{
+    mouth.classList.toggle('open');
+  },120);
+}
+function stopMouthAnimation(){
+  if(mouthInterval) clearInterval(mouthInterval);
+  mouth.classList.remove('open');
+}
+
+/* buttons */
+recBtn.addEventListener('click', ()=>{
+  if(!recognition) { status.textContent = 'Распознавание недоступно.'; return; }
+  try{
+    recognition.start();
+  }catch(e){
+    status.textContent = 'Не удалось запустить микрофон: '+e.message;
+  }
+});
+stopRecBtn.addEventListener('click', ()=>{
+  if(recognition) recognition.stop();
+});
+
+speakTextBtn.addEventListener('click', ()=>{
+  const t = textInput.value.trim();
+  if(!t) {
+    thought.textContent = 'Напиши текст в поле.';
+    return;
+  }
+  speakText(t, {dragonify:false});
+});
+
+repeatBtn.addEventListener('click', ()=>{
+  if(!lastTranscript){
+    thought.textContent = 'Ещё ничего не сказано для повтора.';
+    return;
+  }
+  speakText(lastTranscript, {dragonify:true});
+});
+
+roarBtn.addEventListener('click', ()=>{
+  speakText('Рррррррррррррррр!', {rate:0.8, pitch:0.4});
+  thought.textContent = 'Рёв!';
+});
+
+/* pet / play / food interactions */
+petBtn.addEventListener('click', ()=>{
+  animateHappy();
+  speakText('Мрр, спасибо! Мне приятно.', {rate:0.95, pitch:0.7});
+  thought.textContent = 'Люблю, когда меня гладят.';
+});
+
+playBtn.addEventListener('click', ()=>{
+  animatePlay();
+  speakText('Давай играть! Лови снежок!', {rate:1.0, pitch:0.7});
+  thought.textContent = 'Игрульки!';
+});
+
+foodBtn.addEventListener('click', ()=>{
+  // бросить "еду" к дракону
+  spawnFood();
+  speakText('Вкусно! Спасибо за еду.', {rate:0.9, pitch:0.6});
+  thought.textContent = 'Вкусно!';
+});
+
+/* simple animations */
+function animateHappy(){
+  dragon.classList.add('float');
+  dragon.style.transform = 'scale(1.05)';
+  setTimeout(()=> dragon.style.transform='', 700);
+}
+function animatePlay(){
+  dragon.style.transform = 'translateX(20px) scale(1.03)';
+  setTimeout(()=> dragon.style.transform = 'translateX(-20px) scale(1.03)', 350);
+  setTimeout(()=> dragon.style.transform = '', 800);
+}
+
+/* drag to move dragon (desktop/touch) */
+let dragging=false, dx=0, dy=0, startX=0, startY=0;
+dragon.addEventListener('pointerdown', e=>{
+  dragging=true;
+  dragon.setPointerCapture(e.pointerId);
+  dragon.classList.add('dragging');
+  startX = e.clientX;
+  startY = e.clientY;
+  const style = getComputedStyle(dragon);
+  const matrix = new DOMMatrixReadOnly(style.transform);
+  dx = matrix.m41;
+  dy = matrix.m42;
+});
+window.addEventListener('pointermove', e=>{
+  if(!dragging) return;
+  const nx = dx + (e.clientX - startX);
+  const ny = dy + (e.clientY - startY);
+  dragon.style.transform = `translate(${nx}px, ${ny}px)`;
+});
+window.addEventListener('pointerup', e=>{
+  if(!dragging) return;
+  dragging=false;
+  dragon.classList.remove('dragging');
+  dragon.releasePointerCapture?.(e.pointerId);
+  // small bounce
+  dragon.style.transition = 'transform 220ms ease';
+  setTimeout(()=> dragon.style.transition = '', 230);
+});
+
+/* spawn simple food particle that moves to mouth */
+function spawnFood(){
+  const area = document.querySelector('.dragon-area');
+  const ball = document.createElement('div');
+  ball.className = 'food';
+  ball.style.left = Math.random()*60 + 20 + 'px';
+  ball.style.top = '20px';
+  ball.textContent = '🍖';
+  area.appendChild(ball);
+
+  // move to dragon center
+  const target = dragon.getBoundingClientRect();
+  const areaRect = area.getBoundingClientRect();
+  const tx = target.left + target.width*0.6 - areaRect.left;
+  const ty = target.top + target.height*0.55 - areaRect.top;
+  // animate via CSS transform
+  ball.animate([
+    { transform: 'translate(0,0) scale(1)', opacity:1 },
+    { transform: `translate(${tx - parseFloat(ball.style.left)}px, ${ty -  parseFloat(ball.style.top)}px) scale(0.5)`, opacity:0.8 }
+  ], { duration: 900, easing:'cubic-bezier(.2,.9,.2,1)'})
+  .onfinish = () => {
+    ball.remove();
+    // mouth open munch
+    mouth.classList.add('open');
+    setTimeout(()=> mouth.classList.remove('open'), 450);
+  };
+}
+
+/* small text hint rotation */
+const hints = [
+  'Скажи что-нибудь — я повторю!',
+  'Погладь меня (клик/таск) или нажми Погладить.',
+  'Попробуй кнопку "Рёв" — это весело.',
+  'Нажми "Покормить" — и я съем угощение.'
+];
+let hintIndex=0;
+setInterval(()=> {
+  hintIndex = (hintIndex+1) % hints.length;
+  thought.textContent = hints[hintIndex];
+}, 6000);
+
+/* попытка прогрузки голосов для synthesis */
+if (speechSynthesis.onvoiceschanged !== undefined) {
+  speechSynthesis.onvoiceschanged = ()=> {};
+}
+
+/* —- end —- */
+</script>
+</body>
+</html>
