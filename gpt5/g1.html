@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>🎈 Весёлая мини-игра — Собирай Звёзды!</title>
+<style>
+  :root{
+    --bg1:#0f1724; --bg2:#081025;
+    --accent:#ffd166; --danger:#ff5964; --good:#6ee7b7;
+    --glass: rgba(255,255,255,0.06);
+    --ui: rgba(255,255,255,0.9);
+    --shadow: 0 8px 30px rgba(2,6,23,0.8);
+  }
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;}
+  body{
+    display:flex;align-items:center;justify-content:center;
+    background: radial-gradient(1200px 600px at 10% 20%, #08234a 0%, transparent 12%),
+                radial-gradient(1000px 500px at 90% 80%, #1a0b2e 0%, transparent 12%),
+                linear-gradient(180deg,var(--bg1),var(--bg2));
+    color:var(--ui);
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+  #gameWrap{
+    width:min(980px,96vw); height:min(720px,86vh);
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:16px; padding:14px; box-shadow:var(--shadow);
+    display:grid; grid-template-columns:1fr 320px; gap:12px; align-items:stretch;
+  }
+  canvas{width:100%;height:100%;border-radius:12px; display:block; background:transparent; cursor:none;}
+  #side{
+    padding:12px; border-radius:12px; background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+    display:flex;flex-direction:column; gap:10px; min-width:240px;
+  }
+  .panel{background:var(--glass); padding:10px; border-radius:10px;}
+  h1{font-size:18px;margin:0 0 6px 0; color:var(--accent); display:flex; align-items:center; gap:8px;}
+  .stat{font-size:14px;margin:6px 0;}
+  .big{font-size:28px; font-weight:700; color:#fff; letter-spacing:1px;}
+  .small{font-size:12px;color:rgba(255,255,255,0.7)}
+  button{appearance:none;border:0;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.06);color:var(--ui);cursor:pointer}
+  button:hover{transform:translateY(-2px)}
+  .row{display:flex;gap:8px;align-items:center}
+  .controls{display:grid;gap:6px}
+  .hint{font-size:12px;color:rgba(255,255,255,0.6)}
+  .footer{margin-top:auto;font-size:12px;color:rgba(255,255,255,0.6)}
+  .health {height:10px;background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden}
+  .health > b {display:block;height:100%;background:linear-gradient(90deg,#ff7b7b,#ff5964)}
+  .power {height:8px;background:rgba(255,255,255,0.04);border-radius:6px;overflow:hidden}
+  .power > i {display:block;height:100%;background:linear-gradient(90deg,#76f7c4,#6ee7b7)}
+  #message{font-size:13px;padding:8px;border-radius:8px;background:linear-gradient(90deg,rgba(0,0,0,0.15),rgba(255,255,255,0.02))}
+  footer a{color:var(--accent);text-decoration:none}
+  .emoji{font-size:20px}
+  @media (max-width:840px){
+    #gameWrap{grid-template-columns:1fr; grid-template-rows: 1fr auto}
+    #side{flex-direction:row; gap:8px; overflow:auto; height:86px}
+  }
+</style>
+</head>
+<body>
+<div id="gameWrap" role="application" aria-label="Весёлая игра">
+  <div class="panel" style="position:relative; padding:0;">
+    <canvas id="c"></canvas>
+    <div id="cursor" style="position:absolute; width:36px; height:36px; border-radius:50%; pointer-events:none; transform:translate(-50%,-50%);"></div>
+  </div>
+
+  <div id="side">
+    <div class="panel">
+      <h1>🎮 Собирай Звёзды!</h1>
+      <div class="stat">Счёт: <span id="score" class="big">0</span></div>
+      <div class="stat">Рекорд: <span id="best" class="big">0</span></div>
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div style="flex:1">
+          <div class="small">Жизни</div>
+          <div class="health" aria-hidden="true"><b id="hpbar" style="width:100%"></b></div>
+        </div>
+      </div>
+      <div style="margin-top:8px" class="small">Сила / таймер</div>
+      <div class="power"><i id="pbar" style="width:0%"></i></div>
+      <div style="margin-top:8px" id="message">Нажми в любое место, чтобы начать. Управление: мышь/тач/стрелки (P — пауза).</div>
+    </div>
+
+    <div class="panel controls">
+      <div class="row">
+        <button id="btnPause">⏸ Пауза (P)</button>
+        <button id="btnRestart">🔁 Перезапустить (R)</button>
+      </div>
+      <div class="row">
+        <button id="btnMute">🔊 Звук: Вкл</button>
+        <button id="btnHelp">❓ Помощь</button>
+      </div>
+      <div class="panel" style="padding:8px;">
+        <div class="small">Комбо: <span id="combo">0</span></div>
+        <div class="small">Множитель: x<span id="mult">1</span></div>
+      </div>
+      <div class="panel" id="powersBox">
+        <div class="small"><b>Усиления</b></div>
+        <div class="small">🟢 Щит (неуязвимость), ⭐ Ускорение, ✨ Двойные очки</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="small">Советы: собирай цепочки, избегай врагов. Чем дольше живёшь — тем быстрее всё двигается.</div>
+      <div style="margin-top:6px" class="small">Автор: Игра сгенерирована AI — играй и делись настроением! ✨</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ==== Весёлая мини-игра в один файл ====
+   Механика: игрок собирает звезды, избегает врагов.
+   Управление: мышь/тач/клавиши.
+   Сохранение рекорда: localStorage.
+   Звуки: WebAudio API.
+*/
+
+// ---- Canvas и базовая настройка
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d', { alpha: true });
+let W=canvas.width=800, H=canvas.height=600;
+function resize(){
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = Math.max(600, rect.width * devicePixelRatio);
+  canvas.height = Math.max(420, rect.height * devicePixelRatio);
+  W = canvas.width; H = canvas.height;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ---- DOM
+const scoreEl = document.getElementById('score');
+const bestEl = document.getElementById('best');
+const hpbar = document.getElementById('hpbar');
+const pbar = document.getElementById('pbar');
+const comboEl = document.getElementById('combo');
+const multEl = document.getElementById('mult');
+const btnPause = document.getElementById('btnPause');
+const btnRestart = document.getElementById('btnRestart');
+const btnMute = document.getElementById('btnMute');
+const msg = document.getElementById('message');
+
+// ---- Game state
+let running = false;
+let paused = false;
+let mute = false;
+let score = 0, best = Number(localStorage.getItem('star_best')||0);
+bestEl.textContent = best;
+let hp = 3, maxHp = 3;
+let powerTimer = 0, powerType = null;
+let combo = 0, multiplier = 1;
+let levelSpeed = 1;
+let lastSpawn = 0;
+let t = 0;
+
+// ---- Player
+const player = {
+  x: W/2, y: H/2, r: 18 * devicePixelRatio,
+  vx:0, vy:0, speed: 6 * devicePixelRatio,
+  color: '#ffd166'
+};
+
+// ---- Input
+const keys = {};
+window.addEventListener('keydown', e=>{ keys[e.key.toLowerCase()]=true; if(e.key==='p' || e.key==='P') togglePause(); if(e.key==='r' || e.key==='R') restart(); });
+window.addEventListener('keyup', e=>{ keys[e.key.toLowerCase()]=false; });
+let touchPoint = null;
+canvas.addEventListener('mousemove', e=>{
+  const r = canvas.getBoundingClientRect();
+  touchPoint = {x:(e.clientX - r.left)*devicePixelRatio, y:(e.clientY - r.top)*devicePixelRatio};
+});
+canvas.addEventListener('mouseenter', e=>{ if(!running) start(); });
+canvas.addEventListener('mouseleave', e=>{ touchPoint=null; });
+canvas.addEventListener('pointerdown', e=>{ if(!running) start(); touchPoint = getPoint(e); });
+canvas.addEventListener('pointermove', e=>{ touchPoint = getPoint(e); });
+canvas.addEventListener('pointerup', e=>{ touchPoint=null; });
+
+// ---- Entities: stars, enemies, powers, particles
+const stars = [];
+const enemies = [];
+const powers = [];
+const particles = [];
+
+function rand(a,b){ return a + Math.random()*(b-a); }
+function getPoint(e){
+  const r = canvas.getBoundingClientRect();
+  return {x:(e.clientX - r.left)*devicePixelRatio, y:(e.clientY - r.top)*devicePixelRatio};
+}
+
+// ---- Audio (WebAudio synth)
+let audioCtx = null;
+function ensureAudio(){
+  if(audioCtx) return;
+  try{
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }catch(e){ audioCtx=null; }
+}
+function playBeep(freq=440, time=0.06, type='sine', vol=0.08){
+  if(mute) return;
+  ensureAudio();
+  if(!audioCtx) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.value = vol;
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start();
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + time);
+  o.stop(audioCtx.currentTime + time + 0.02);
+}
+function playHit(){ playBeep(120,0.12,'sawtooth',0.12); }
+function playPickup(){ playBeep(880,0.08,'sine',0.09); }
+function playPower(){ playBeep(600,0.18,'triangle',0.12); }
+
+// ---- Spawn functions
+function spawnStar(){
+  stars.push({
+    x: rand(60, W-60),
+    y: rand(60, H-60),
+    r: 12*devicePixelRatio,
+    wobble: Math.random()*Math.PI*2,
+    t:0
+  });
+}
+function spawnEnemy(){
+  const side = Math.random();
+  let x,y, vx, vy;
+  if(side<0.25){ x=-40; y=rand(20,H-20); vx=rand(0.6,1.2); vy=rand(-0.5,0.5); }
+  else if(side<0.5){ x=W+40; y=rand(20,H-20); vx=rand(-1.2,-0.6); vy=rand(-0.5,0.5); }
+  else if(side<0.75){ x=rand(20,W-20); y=-40; vx=rand(-0.5,0.5); vy=rand(0.6,1.2); }
+  else { x=rand(20,W-20); y=H+40; vx=rand(-0.5,0.5); vy=rand(-1.2,-0.6); }
+  enemies.push({x,y,vx: vx*levelSpeed*devicePixelRatio, vy: vy*levelSpeed*devicePixelRatio, r: 16*devicePixelRatio, t:0});
+}
+function spawnPower(){
+  powers.push({
+    x: rand(60, W-60), y: rand(60, H-60), r: 14*devicePixelRatio,
+    type: ['shield','boost','double'][Math.floor(Math.random()*3)],
+    t:0
+  });
+}
+function spawnParticle(x,y,color,life=50, count=10){
+  for(let i=0;i<count;i++){
+    particles.push({
+      x,y, vx:rand(-2,2)*devicePixelRatio, vy:rand(-2,2)*devicePixelRatio,
+      r: rand(1,4)*devicePixelRatio, color, life, age:0
+    });
+  }
+}
+
+// ---- Game loop
+let lastTime = performance.now();
+function start(){
+  running = true;
+  paused = false;
+  msg.textContent = 'Удачи! Собирай звёзды — они дают очки! ✨';
+  lastSpawn = 0; t=0; lastTime = performance.now();
+  if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  loop();
+}
+function restart(){
+  score = 0; hp = maxHp; powerTimer = 0; powerType = null;
+  stars.length=0; enemies.length=0; powers.length=0; particles.length=0;
+  combo = 0; multiplier = 1; levelSpeed = 1;
+  scoreEl.textContent = score; hpbar.style.width = '100%'; pbar.style.width='0%';
+  msg.textContent = 'Перезапуск — поехали! 🚀';
+  if(!running) start();
+}
+function togglePause(){
+  paused = !paused;
+  btnPause.textContent = paused ? '▶ Продолжить' : '⏸ Пауза (P)';
+  if(paused) msg.textContent = 'Пауза — нажми P чтобы продолжить';
+  else msg.textContent = 'Возобновлено';
+  if(audioCtx && audioCtx.state==='running' && paused) audioCtx.suspend();
+  if(audioCtx && audioCtx.state==='suspended' && !paused) audioCtx.resume();
+}
+btnPause.onclick = togglePause;
+btnRestart.onclick = restart;
+btnMute.onclick = ()=>{ mute = !mute; btnMute.textContent = mute ? '🔇 Звук: Выкл' : '🔊 Звук: Вкл'; };
+
+// ---- Collisions
+function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+
+// ---- Update & draw
+function loop(now){
+  if(!running) return;
+  requestAnimationFrame(loop);
+  const dt = Math.min((now - lastTime)/16.666, 4); lastTime = now;
+  if(paused) { draw(); return; }
+  t += dt;
+  // spawn logic (scales with time)
+  lastSpawn += dt;
+  if(lastSpawn > Math.max(12 - Math.sqrt(t)*1.5, 3)){
+    if(Math.random() < 0.7) spawnStar(); else spawnPower();
+    lastSpawn = 0;
+  }
+  // spawn enemies more as time grows
+  if(Math.random() < Math.min(0.02 + t*0.001, 0.08)) spawnEnemy();
+
+  // player movement
+  const speedBase = player.speed * (powerType==='boost' ? 1.8 : 1);
+  if(touchPoint){
+    // smooth move towards touch point
+    player.vx += ((touchPoint.x - player.x)/8) * dt;
+    player.vy += ((touchPoint.y - player.y)/8) * dt;
+  } else {
+    // keyboard
+    let ax = 0, ay = 0;
+    if(keys['arrowleft']||keys['a']) ax -= 1;
+    if(keys['arrowright']||keys['d']) ax += 1;
+    if(keys['arrowup']||keys['w']) ay -= 1;
+    if(keys['arrowdown']||keys['s']) ay += 1;
+    player.vx += ax * speedBase * 0.5 * dt;
+    player.vy += ay * speedBase * 0.5 * dt;
+  }
+  // friction
+  player.vx *= 0.88;
+  player.vy *= 0.88;
+  player.x += player.vx * speedBase * 0.08 * dt;
+  player.y += player.vy * speedBase * 0.08 * dt;
+  // clamp
+  player.x = Math.max(player.r, Math.min(W-player.r, player.x));
+  player.y = Math.max(player.r, Math.min(H-player.r, player.y));
+
+  // update stars
+  for(let i=stars.length-1;i>=0;i--){
+    const s = stars[i];
+    s.t += dt;
+    s.wobble += 0.1*dt;
+    // glow bounce
+    if(dist(s, player) < s.r + player.r){
+      // collected
+      playPickup();
+      spawnParticle(s.x, s.y, '#ffd166', 40, 12);
+      stars.splice(i,1);
+      combo++;
+      multiplier = 1 + Math.floor(combo/5)*0.5;
+      const gained = Math.floor(10 * multiplier * (powerType==='double'?2:1));
+      score += gained;
+      scoreEl.textContent = score;
+      comboEl.textContent = combo;
+      multEl.textContent = multiplier.toFixed(1).replace('.0','');
+      // level speed slight increase
+      levelSpeed += 0.02;
+      if(score > best){ best = score; bestEl.textContent = best; localStorage.setItem('star_best', best); }
+      continue;
+    }
+    // small drift
+    s.x += Math.sin(s.wobble)*0.2*dt*devicePixelRatio;
+    s.y += Math.cos(s.wobble*0.7)*0.2*dt*devicePixelRatio;
+  }
+
+  // update enemies
+  for(let i=enemies.length-1;i>=0;i--){
+    const e = enemies[i];
+    e.x += e.vx * dt;
+    e.y += e.vy * dt;
+    e.t += dt;
+    // bounce softly off walls
+    if(e.x < -100 || e.x > W+100 || e.y < -100 || e.y > H+100){
+      enemies.splice(i,1); continue;
+    }
+    // collision with player
+    if(dist(e, player) < e.r + player.r){
+      if(powerType === 'shield'){
+        // destroy enemy
+        spawnParticle(e.x,e.y,'#6ee7b7',40,18);
+        enemies.splice(i,1);
+        playPower();
+        score += 8 * multiplier;
+        combo = 0; multiplier = 1;
+        comboEl.textContent = combo; multEl.textContent = multiplier.toFixed(1).replace('.0','');
+      } else {
+        // hit
+        playHit();
+        spawnParticle(player.x, player.y, '#ff7b7b', 60, 26);
+        enemies.splice(i,1);
+        hp -= 1;
+        combo = 0; multiplier = 1;
+        comboEl.textContent = combo; multEl.textContent = multiplier.toFixed(1).replace('.0','');
+        hpbar.style.width = (hp/maxHp*100)+'%';
+        msg.textContent = ['Ой!','Упс!','Аа!'][Math.floor(Math.random()*3)] + ' — жизнь потеряна';
+        if(hp <= 0){
+          // game over
+          running = false;
+          msg.textContent = `💥 Игра окончена! Твой счёт: ${score}. Нажми R чтобы попробовать ещё.`;
+          if(score > best){ best = score; localStorage.setItem('star_best', best); bestEl.textContent = best; }
+          playBeep(120,0.4,'sine',0.3);
+          break;
+        }
+      }
+    }
+  }
+
+  // powers
+  for(let i=powers.length-1;i>=0;i--){
+    const p = powers[i];
+    p.t += dt;
+    if(dist(p, player) < p.r + player.r){
+      // pick up
+      powerType = p.type;
+      powerTimer = 360; // frames ~6s (approx)
+      playPower();
+      spawnParticle(p.x, p.y, '#6ee7b7', 40, 20);
+      powers.splice(i,1);
+      msg.textContent = (powerType==='shield'?'🛡 Щит! Неуязвимость':'✨ Усиление!') + ' Действует короткое время.'; 
+    }
+  }
+  if(powerTimer>0){
+    powerTimer -= dt*10;
+    pbar.style.width = Math.max(0, Math.min(100, powerTimer/360*100)) + '%';
+    if(powerTimer <= 0){ powerType = null; pbar.style.width = '0%'; msg.textContent = 'Усиление закончилось.'; }
+  }
+
+  // particles
+  for(let i=particles.length-1;i>=0;i--){
+    const p = particles[i];
+    p.x += p.vx * dt * 0.8;
+    p.y += p.vy * dt * 0.8;
+    p.age += dt*2;
+    p.vx *= 0.98; p.vy *= 0.98;
+    if(p.age > p.life) particles.splice(i,1);
+  }
+
+  // slow combo decay
+  if(combo>0 && Math.random() < 0.02*dt) {
+    combo = Math.max(0, combo - 1);
+    multiplier = 1 + Math.floor(combo/5)*0.5;
+    comboEl.textContent = combo; multEl.textContent = multiplier.toFixed(1).replace('.0','');
+  }
+
+  // draw
+  draw();
+}
+
+// ---- Draw function
+function draw(){
+  // clear with gradient
+  ctx.clearRect(0,0,W,H);
+  // background stars gradient & subtle grid
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'rgba(10,20,40,0.6)');
+  grad.addColorStop(1,'rgba(2,6,15,0.6)');
+  ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
+
+  // moving aura behind
+  for(let i=0;i<4;i++){
+    ctx.beginPath();
+    const rx = W*(0.1+0.2*i) + Math.sin(t*0.02+i)*80*devicePixelRatio;
+    const ry = H*(0.2+0.15*i) + Math.cos(t*0.02+i)*60*devicePixelRatio;
+    ctx.fillStyle = `rgba(${20+30*i},${30+20*i},${60+10*i},${0.02+0.01*i})`;
+    ctx.ellipse(rx,ry, W*0.4, H*0.28, 0,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  // stars (collectibles)
+  for(const s of stars){
+    const glow = 6*devicePixelRatio + Math.sin(s.t*0.2)*3;
+    // glow
+    const g = ctx.createRadialGradient(s.x,s.y,0,s.x,s.y, s.r+glow);
+    g.addColorStop(0, 'rgba(255,209,102,0.95)');
+    g.addColorStop(0.6, 'rgba(255,150,60,0.35)');
+    g.addColorStop(1, 'rgba(255,150,60,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.ellipse(s.x,s.y,s.r+glow,s.r+glow,0,0,Math.PI*2); ctx.fill();
+    // core star
+    ctx.beginPath();
+    drawStar(ctx, s.x, s.y, 5, s.r*0.6, s.r*0.25, s.wobble);
+    ctx.fillStyle = '#fff7e6';
+    ctx.fill();
+  }
+
+  // powers
+  for(const p of powers){
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    const wob = Math.sin(p.t*0.3)*0.4;
+    ctx.rotate(wob);
+    ctx.beginPath();
+    ctx.arc(0,0,p.r,0,Math.PI*2);
+    ctx.fillStyle = (p.type==='shield'?'rgba(110,231,183,0.14)': p.type==='boost'?'rgba(170,150,255,0.12)':'rgba(255,210,110,0.12)');
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = (p.type==='shield'?'#6ee7b7': p.type==='boost'?'#caa8ff':'#ffd166');
+    roundedStroke(ctx,0,0,p.r-4,3);
+    // icon
+    ctx.fillStyle = (p.type==='shield'?'#6ee7b7': p.type==='boost'?'#caa8ff':'#ffd166');
+    ctx.font = `${12*devicePixelRatio}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(p.type==='shield'?'🛡': p.type==='boost'?'⚡':'✴', 0, 0);
+    ctx.restore();
+  }
+
+  // enemies
+  for(const e of enemies){
+    ctx.beginPath();
+    // pulsing red
+    const pulse = 1 + Math.sin(e.t*0.6)*0.08;
+    ctx.fillStyle = `rgba(255,89,100,0.95)`;
+    ctx.ellipse(e.x, e.y, e.r*pulse, e.r*pulse, 0,0,Math.PI*2);
+    ctx.fill();
+    // angry eye
+    ctx.beginPath();
+    ctx.fillStyle = '#222';
+    ctx.ellipse(e.x - e.r*0.3, e.y - e.r*0.1, e.r*0.3, e.r*0.22, 0,0,Math.PI*2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.fillStyle = '#fff';
+    ctx.ellipse(e.x - e.r*0.3, e.y - e.r*0.1, e.r*0.14, e.r*0.12, 0,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  // particles
+  for(const p of particles){
+    const alpha = 1 - (p.age / p.life);
+    ctx.fillStyle = hexToRGBA(p.color, alpha);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, Math.max(0.5, p.r), 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // player
+  ctx.beginPath();
+  // glow
+  const glowg = ctx.createRadialGradient(player.x, player.y, 0, player.x, player.y, player.r*4);
+  glowg.addColorStop(0, 'rgba(255,209,102,0.16)');
+  glowg.addColorStop(1, 'rgba(255,209,102,0)');
+  ctx.fillStyle = glowg; ctx.beginPath(); ctx.ellipse(player.x, player.y, player.r*3, player.r*2, 0,0,Math.PI*2); ctx.fill();
+
+  // main body
+  ctx.beginPath(); ctx.ellipse(player.x, player.y, player.r, player.r*0.9, 0, 0, Math.PI*2);
+  ctx.fillStyle = player.color; ctx.fill();
+  // eye
+  ctx.beginPath(); ctx.fillStyle = '#fff'; ctx.arc(player.x + player.r*0.25, player.y - player.r*0.05, player.r*0.28, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.fillStyle = '#222'; ctx.arc(player.x + player.r*0.28, player.y - player.r*0.05, player.r*0.12, 0, Math.PI*2); ctx.fill();
+
+  // shield overlay
+  if(powerType==='shield'){
+    ctx.beginPath();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = 'rgba(110,231,183,0.9)';
+    ctx.ellipse(player.x, player.y, player.r*1.6, player.r*1.6, 0, 0, Math.PI*2);
+    ctx.stroke();
+  }
+
+  // HUD overlay small
+  ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.fillRect(12*devicePixelRatio, 12*devicePixelRatio, 210*devicePixelRatio, 44*devicePixelRatio);
+  ctx.fillStyle = '#fff'; ctx.font = `${14*devicePixelRatio}px sans-serif`; ctx.fillText(`Очки: ${score}`, 24*devicePixelRatio, 36*devicePixelRatio);
+
+  // pointer (for mouse control)
+  // small custom cursor only when not touch
+  if(touchPoint){
+    ctx.beginPath();
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.arc(touchPoint.x, touchPoint.y, 16*devicePixelRatio,0,Math.PI*2); ctx.fill();
+    ctx.beginPath();
+    ctx.fillStyle = '#ffd166';
+    ctx.arc(touchPoint.x, touchPoint.y, 5*devicePixelRatio,0,Math.PI*2); ctx.fill();
+  }
+}
+
+// ---- Helpers
+function drawStar(ctx, x, y, spikes, outerRadius, innerRadius, rot=0){
+  let rotLocal = -Math.PI/2 + rot;
+  let cx = x, cy = y;
+  let step = Math.PI / spikes;
+  ctx.moveTo(cx + Math.cos(rotLocal) * outerRadius, cy + Math.sin(rotLocal) * outerRadius);
+  for(let i=0;i<spikes;i++){
+    ctx.lineTo(cx + Math.cos(rotLocal + step) * innerRadius, cy + Math.sin(rotLocal + step) * innerRadius);
+    rotLocal += step;
+    ctx.lineTo(cx + Math.cos(rotLocal) * outerRadius, cy + Math.sin(rotLocal) * outerRadius);
+    rotLocal += step;
+  }
+}
+function roundedStroke(ctx,x,y,r,w){
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.stroke();
+}
+function hexToRGBA(hex, alpha=1){
+  // expects #rrggbb
+  const c = hex.replace('#','');
+  const r = parseInt(c.substring(0,2),16);
+  const g = parseInt(c.substring(2,4),16);
+  const b = parseInt(c.substring(4,6),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ---- initial content
+msg.textContent = 'Нажми по экрану или перемести мышь, чтобы начать игру.';
+
+// Spawn a few initial stars
+for(let i=0;i<4;i++) spawnStar();
+
+// ---- UI help and controls
+btnHelp.onclick = ()=>{
+  alert("Управление:\n- Мышь/тач: двигай игрока\n- Клавиши: стрелки / WASD\n- P — пауза, R — перезапуск\nСобирай звезды, избегай врагов. Подбирай усиления.");
+};
+
+// small ambient auto-spawn over time
+setInterval(()=>{ if(running && !paused && Math.random()<0.7) spawnStar(); }, 1400);
+setInterval(()=>{ if(running && !paused && Math.random()<0.06) spawnPower(); }, 2500);
+
+// Auto-start music when first interaction
+document.addEventListener('click', ()=>{ if(!audioCtx) ensureAudio(); });
+
+// draw first frame
+draw();
+
+</script>
+</body>
+</html>
