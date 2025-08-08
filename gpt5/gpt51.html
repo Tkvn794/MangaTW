@@ -2,14 +2,16 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8"/>
-<title>Zombie Defense — одностраничная игра</title>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Zombie Defense — Полная версия</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <style>
-  html,body{height:100%;margin:0;font-family:Arial,Helvetica,sans-serif;background:#111;color:#eee}
-  #container{display:flex;height:100vh;}
-  #game{flex:1;display:flex;align-items:stretch;justify-content:center;background: #0b0b0b;position:relative;}
-  canvas{background: linear-gradient(#122,#0a0a0a); display:block; margin:auto; box-shadow: 0 0 20px #000}
-  #ui{width:280px;min-width:260px;background:#141414;padding:12px;box-sizing:border-box;border-left: 2px solid #222;overflow:auto;}
+  html,body{height:100%;margin:0;font-family:Arial,Helvetica,sans-serif;background:#0b0b0b;color:#eee}
+  #container{display:flex;height:100vh;box-sizing:border-box;}
+  /* game area */
+  #game{flex:1;display:flex;align-items:stretch;justify-content:center;background:#070a08;position:relative;overflow:hidden;}
+  canvas{background: linear-gradient(#0b140e,#050605); display:block; margin:auto; box-shadow: 0 0 20px #000; max-width:100%; height:auto;}
+  /* UI */
+  #ui{width:280px;min-width:240px;background:#141414;padding:12px;box-sizing:border-box;border-left: 2px solid #222;overflow:auto;}
   h2{margin:6px 0 10px 0;font-size:16px}
   .stat{display:flex;gap:8px;align-items:center;margin-bottom:6px}
   .bar{height:14px;background:#222;border-radius:7px;flex:1;overflow:hidden;position:relative}
@@ -19,133 +21,121 @@
   .btn:hover{background:#272727}
   .shop-item{display:flex;justify-content:space-between;align-items:center;padding:6px;border-bottom:1px dashed #222}
   .muted{color:#aaa;font-size:12px}
-  canvas::-webkit-focus-ring-color { outline: none; }
   #footer{font-size:12px;color:#999;margin-top:8px}
   .small{font-size:13px}
+  canvas::-webkit-focus-ring-color { outline: none; }
 
-  /* Мобильные элементы управления */
-  #mobileControls {
-    position: absolute;
-    bottom: 20px;
-    left: 20px;
-    z-index: 100;
-    user-select: none;
-  }
-  .joystick {
-    width: 120px;
-    height: 120px;
-    background: rgba(255,255,255,0.05);
-    border-radius: 50%;
-    position: relative;
-    touch-action: none;
-  }
-  .joystick-knob {
-    width: 50px;
-    height: 50px;
-    background: rgba(255,255,255,0.2);
-    border-radius: 50%;
-    position: absolute;
-    left: 35px;
-    top: 35px;
-  }
+  /* Mobile controls */
+  #mobileControls { position:absolute; bottom:18px; left:18px; z-index:200; user-select:none; touch-action:none; }
+  .joystick { width:120px; height:120px; background:rgba(255,255,255,0.03); border-radius:50%; position:relative; }
+  .joystick-knob { width:48px; height:48px; background:rgba(255,255,255,0.12); border-radius:50%; position:absolute; left:36px; top:36px; transition: transform 0.02s; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#222;}
+  /* Fire buttons */
+  #fireButtons { position:absolute; bottom:18px; right:18px; display:flex; flex-direction:column; gap:12px; z-index:200; }
+  .fire-btn { width:84px; height:84px; border-radius:50%; background:rgba(255,255,255,0.06); color:#fff; font-weight:bold; font-size:15px; border:2px solid rgba(255,255,255,0.08); text-align:center; line-height:84px; touch-action:none; }
+  .fire-btn:active { transform:scale(0.98); }
+  .small-btn-row{ display:flex; gap:8px; margin-top:6px; }
+  .mini-btn{ padding:6px 8px; background:#1b1b1b; border:1px solid #333; border-radius:6px; cursor:pointer; color:#eee; }
+  .cooldownOverlay { position:absolute; inset:0; background:rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; font-weight:bold; color:#ffd; font-size:16px; border-radius:50%; }
 
-  /* Кнопки стрельбы */
-  #fireButtons {
-    position: absolute;
-    bottom: 20px;
-    right: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    z-index: 100;
-  }
-  .fire-btn {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.15);
-    color: white;
-    font-weight: bold;
-    font-size: 16px;
-    border: 2px solid rgba(255,255,255,0.3);
-    text-align: center;
-    line-height: 80px;
-    touch-action: none;
-  }
-  .fire-btn:active {
-    background: rgba(255,255,255,0.3);
+  /* responsive: shrink UI on narrow screens to ensure it's visible */
+  @media (max-width:900px){
+    #ui{width:220px}
+    .fire-btn{width:72px;height:72px;line-height:72px;font-size:14px}
+    .joystick{width:100px;height:100px}
+    .joystick-knob{width:40px;height:40px;left:30px;top:30px}
   }
 </style>
 </head>
 <body>
 <div id="container">
   <div id="game">
-    <canvas id="c" width="900" height="600" tabindex="0"></canvas>
+    <canvas id="c" width="1000" height="640" tabindex="0"></canvas>
 
-    <!-- Джойстик -->
+    <!-- mobile controls -->
     <div id="mobileControls">
-      <div class="joystick" id="joystick">
-        <div class="joystick-knob" id="joystickKnob"></div>
+      <div class="joystick" id="joystick"><div class="joystick-knob" id="joystickKnob">●</div></div>
+    </div>
+
+    <div id="fireButtons">
+      <div style="position:relative">
+        <div class="fire-btn" id="btnFire">Fire</div>
+        <div id="fireHoldOverlay" class="cooldownOverlay" style="display:none">HOLD</div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <div style="position:relative">
+          <div class="fire-btn" id="btnMagic1">FIRE</div>
+          <div id="cdMagic1" class="cooldownOverlay" style="display:none"></div>
+        </div>
+        <div style="position:relative">
+          <div class="fire-btn" id="btnMagic2">ICE</div>
+          <div id="cdMagic2" class="cooldownOverlay" style="display:none"></div>
+        </div>
+        <div style="position:relative">
+          <div class="fire-btn" id="btnMagic3">STRK</div>
+          <div id="cdMagic3" class="cooldownOverlay" style="display:none"></div>
+        </div>
+      </div>
+
+      <div class="small-btn-row" style="margin-top:8px">
+        <div class="mini-btn" id="weaponPrev">◀</div>
+        <div class="mini-btn" id="weaponNext">▶</div>
+        <div class="mini-btn" id="toggleAuto">Auto: OFF</div>
       </div>
     </div>
-
-    <!-- Кнопки -->
-    <div id="fireButtons">
-      <div class="fire-btn" id="btnShoot">Fire</div>
-      <div class="fire-btn" id="btnMagic">Magic</div>
-    </div>
   </div>
+
+  <!-- UI -->
   <div id="ui">
-    <h2>Zombie Defense</h2>
-    <div class="stat"><div>HP:</div><div class="bar" style="width:100%"><i id="hpbar" style="width:100%"></i></div><div id="hptext" style="width:60px;text-align:right">100 / 100</div></div>
+    <h2>Zombie Defense — Полная версия</h2>
+
+    <div class="stat"><div>HP:</div><div class="bar" style="width:100%"><i id="hpbar" style="width:100%"></i></div><div id="hptext" style="width:64px;text-align:right">100 / 100</div></div>
     <div class="stat"><div>Gold:</div><div class="gold" id="gold">0</div></div>
     <div class="stat"><div>Wave:</div><div id="wave">0</div></div>
     <div class="stat"><div>Enemies:</div><div id="enemiesCount">0</div></div>
 
     <h2>Инвентарь & Оружие</h2>
     <div id="weapons" class="small">
-      <div>Выбранное оружие: <b id="weaponName">Пистолет</b></div>
-      <div class="muted">ЛКМ — стрелять | ПКМ — магия (огненный шар)</div>
+      <div>Оружие: <b id="weaponName">Пистолет</b></div>
+      <div class="muted">Движение: джойстик | Цель: тап по полю | Fire — стрелять</div>
       <div style="margin-top:8px">
         <button class="btn" id="buyBullets">Купить +10 патронов (10 золота)</button>
-        <button class="btn" id="buyFood">Купить еду (восстановление 30 HP) — 15 золота</button>
+        <button class="btn" id="buyFood">Купить еду (+30 HP) — 15 золота</button>
       </div>
       <div style="margin-top:8px">
         <div>Патроны: <span id="ammo">30</span></div>
-        <div>Еда в сумке: <span id="food">0</span></div>
-        <div>Магия (фаербол) готова: <span id="magicReady">Да</span></div>
+        <div>Еда: <span id="food">0</span></div>
+        <div>Магия (FIRE / ICE / STRK): <span id="magicStatus">Готова</span></div>
       </div>
     </div>
 
-    <h2>Магазин / Постройка</h2>
+    <h2>Магазин / Постройки</h2>
     <div id="shop">
       <div class="shop-item"><div>Малая башня (авто-стрелок)</div><div><button class="btn" data-action="buyTower" data-cost="30">Купить 30</button></div></div>
       <div class="shop-item"><div>Средняя башня (мощнее)</div><div><button class="btn" data-action="buyTower" data-cost="70" data-power="2">Купить 70</button></div></div>
-      <div class="shop-item"><div>Апгрейд урона (пистолет)</div><div><button class="btn" id="upgradeWeapon">Купить 50</button></div></div>
-      <div class="shop-item"><div>Волна — начать</div><div><button class="btn" id="startWave">Старт волны</button></div></div>
+      <div class="shop-item"><div>Апгрейд урона</div><div><button class="btn" id="upgradeWeapon">Купить 50</button></div></div>
+      <div class="shop-item"><div>Старт волны</div><div><button class="btn" id="startWave">Старт волны</button></div></div>
     </div>
 
     <h2>Инструкции</h2>
     <div class="muted small">
-      - Кликайте по земле, чтобы перемещаться.<br>
-      - ЛКМ — стреляет по направлению к курсору (тратит патроны).<br>
-      - ПКМ — магия (фаербол), имеет откат 8 с.<br>
-      - Постройте башню — нажмите "Купить" в магазине, затем кликните по полю для размещения.<br>
-      - Еда восстанавливает HP мгновенно.<br>
-      - Зарабатывайте золото убивая зомби.
+      - Тап по полю ставит курсор (цель).<br>
+      - Fire — удерживай для непрерывной стрельбы (вкл/выкл авто внизу).<br>
+      - Магии имеют откат: FIRE — фаербол AOE, ICE — замедление, STRK — молния по цепи.<br>
+      - На каждой 5-й волне будет босс. Он крупный и может призывать зомби.<br>
     </div>
-    <div id="footer">Сделано в одном HTML • Простая демо-игра</div>
+    <div id="footer">Сделано в одном HTML • Запускай в браузере</div>
   </div>
 </div>
 
 <script>
-/* --- Игра как в твоём коде, с добавлением джойстика и кнопок --- */
+/* Полная игровая логика */
 (() => {
+  // Canvas and context
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
   canvas.focus();
 
-  // UI refs
+  // UI elements
   const hpbar = document.getElementById('hpbar');
   const hptext = document.getElementById('hptext');
   const goldEl = document.getElementById('gold');
@@ -153,123 +143,822 @@
   const enemiesCountEl = document.getElementById('enemiesCount');
   const ammoEl = document.getElementById('ammo');
   const foodEl = document.getElementById('food');
-  const magicReadyEl = document.getElementById('magicReady');
+  const magicStatusEl = document.getElementById('magicStatus');
   const weaponNameEl = document.getElementById('weaponName');
 
-  const W = canvas.width, H = canvas.height;
-  let gold = 50, wave = 0;
-  let enemies = [], projectiles = [], towers = [], particles = [];
+  const btnFire = document.getElementById('btnFire');
+  const btnMagic1 = document.getElementById('btnMagic1');
+  const btnMagic2 = document.getElementById('btnMagic2');
+  const btnMagic3 = document.getElementById('btnMagic3');
+  const cdMagic1 = document.getElementById('cdMagic1');
+  const cdMagic2 = document.getElementById('cdMagic2');
+  const cdMagic3 = document.getElementById('cdMagic3');
+  const fireHoldOverlay = document.getElementById('fireHoldOverlay');
+  const toggleAutoBtn = document.getElementById('toggleAuto');
+
+  // Sizes
+  let W = canvas.width, H = canvas.height;
+  function resizeCanvasToDisplay() {
+    // keep internal resolution stable; canvas styled responsive but internal size is fixed
+    // Could adjust if wanted; keep fixed for consistency.
+  }
+  resizeCanvasToDisplay();
+
+  // Game state
+  let gold = 75;
+  let wave = 0;
+  let enemies = [];
+  let projectiles = [];
+  let towers = [];
+  let particles = [];
+  let pickups = [];
   let placingTower = null;
-  let mouse = {x:0,y:0,down:false,rightDown:false};
   let lastTime = 0;
+  let autoFire = false;
 
-  const player = {x:W/2, y:H/2, r:14, hpMax:100, hp:100, speed:200, ammo:30, food:0, weaponPower:1, magicCooldown:0, magicReady:true};
+  // Player
+  const player = {
+    x: W/2, y: H/2, r:16,
+    hpMax: 150, hp: 150,
+    speed: 220,
+    ammo: 50,
+    food: 0,
+    weaponIndex: 0, // 0 pistol,1 shotgun,2 smg
+    weaponPower:1,
+    firingCooldown: 0,
+    firingRate: 0.2, // base
+    magicCDs: {fire:0, ice:0, strike:0},
+    magicReady: {fire:true, ice:true, strike:true},
+    facingX: W/2, facingY: H/2
+  };
 
-  const config = {enemyBaseHealth:20, enemySpeed:40, spawnPerWaveBase:6, goldPerKill:6, towerFireRate:0.8, towerRange:140, timeScale:1};
+  // Weapon definitions
+  const weapons = [
+    {name:'Пистолет', ammoPerShot:1, dmg:18, spread:0, rate:0.28},
+    {name:'Дробовик', ammoPerShot:4, dmg:10, spread:0.6, rate:0.9},
+    {name:'Автомат', ammoPerShot:1, dmg:9, spread:0.15, rate:0.08}
+  ];
 
-  function dist(a,b){ return Math.hypot(a.x-b.x,a.y-b.y) }
-  function clamp(v,a,b){ return Math.max(a,Math.min(b,v)) }
+  // Config
+  const config = {
+    enemyBaseHealth: 30,
+    enemySpeed: 55,
+    spawnPerWaveBase: 5,
+    goldPerKill: 6,
+    towerFireRate: 0.7,
+    towerRange: 150,
+    maxParticles: 800
+  };
+
+  // Utils
   function rand(min,max){ return Math.random()*(max-min)+min }
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)) }
   function now(){ return performance.now()/1000 }
+  function dist(x1,y1,x2,y2){ return Math.hypot(x1-x2, y1-y2) }
 
-  canvas.addEventListener('mousemove', e=> {
+  // Input / aiming
+  let pointer = {x: player.x, y: player.y, down:false};
+  canvas.addEventListener('mousemove', e => {
     const rect = canvas.getBoundingClientRect();
-    mouse.x = (e.clientX - rect.left) * (canvas.width / rect.width);
-    mouse.y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    pointer.x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    pointer.y = (e.clientY - rect.top) * (canvas.height / rect.height);
   });
-  canvas.addEventListener('mousedown', e=> {
-    if(e.button===0) mouse.down = true;
-    if(e.button===2) mouse.rightDown = true;
-    if(placingTower && e.button===0){
-      if(gold>=placingTower.cost && dist(mouse,player)>50){
-        towers.push({x:mouse.x,y:mouse.y,range:(placingTower.power||1)*config.towerRange,fireRate:config.towerFireRate/(placingTower.power||1),lastFire:0,power:(placingTower.power||1),hp:60+(placingTower.power||0)*40});
-        gold -= placingTower.cost;
-        placingTower=null;
-      }
-    }
+  canvas.addEventListener('mousedown', e => {
+    pointer.down = true;
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    pointer.y = (e.clientY - rect.top) * (canvas.height / rect.height);
   });
-  canvas.addEventListener('mouseup', e=> {
-    if(e.button===0) mouse.down=false;
-    if(e.button===2){ mouse.rightDown=false; castMagic(); }
+  canvas.addEventListener('mouseup', e => pointer.down = false);
+  // touch aiming
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    const t = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = (t.clientX - rect.left) * (canvas.width / rect.width);
+    pointer.y = (t.clientY - rect.top) * (canvas.height / rect.height);
+    pointer.down = true;
+  }, {passive:false});
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    const t = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = (t.clientX - rect.left) * (canvas.width / rect.width);
+    pointer.y = (t.clientY - rect.top) * (canvas.height / rect.height);
+  }, {passive:false});
+  canvas.addEventListener('touchend', e => {
+    pointer.down = false;
   });
-  canvas.addEventListener('contextmenu', e=> e.preventDefault());
 
-  document.getElementById('buyBullets').addEventListener('click', ()=>{ if(gold>=10){ gold-=10; player.ammo+=10; updateUI(); } });
-  document.getElementById('buyFood').addEventListener('click', ()=>{ if(gold>=15){ gold-=15; player.food++; updateUI(); } });
-  document.querySelectorAll('[data-action="buyTower"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{ placingTower={cost:+btn.dataset.cost||30, power:+btn.dataset.power||1}; });
-  });
-  document.getElementById('upgradeWeapon').addEventListener('click', ()=>{ if(gold>=50){ gold-=50; player.weaponPower++; updateUI(); } });
-  document.getElementById('startWave').addEventListener('click', ()=> startWave());
-
-  function shoot(tx,ty,opts={}) {
-    if(player.ammo<=0) return;
-    player.ammo--;
-    const angle = Math.atan2(ty-player.y, tx-player.x);
-    projectiles.push({x:player.x,y:player.y,vx:Math.cos(angle)*(opts.speed||600),vy:Math.sin(angle)*(opts.speed||600),r:4,dmg:(opts.dmg||12)*player.weaponPower,ttl:2});
-  }
-  function castMagic(){
-    if(!player.magicReady||player.magicCooldown>0) return;
-    player.magicReady=false; player.magicCooldown=8;
-    const angle = Math.atan2(mouse.y-player.y, mouse.x-player.x);
-    projectiles.push({x:player.x,y:player.y,vx:Math.cos(angle)*420,vy:Math.sin(angle)*420,r:10,dmg:45,ttl:2.2,magic:true});
-  }
-  function spawnEnemy(x,y,hp,spd){ enemies.push({x,y,r:12,hp,maxHp:hp,speed:spd,target:player}); }
-  function startWave(){
-    wave++; waveEl.textContent=wave;
-    const count = config.spawnPerWaveBase + wave*2;
-    for(let i=0;i<count;i++){
-      const edge = Math.floor(Math.random()*4);
-      let x,y; if(edge===0){x=-20;y=rand(0,H)} if(edge===1){x=W+20;y=rand(0,H)} if(edge===2){x=rand(0,W);y=-20} if(edge===3){x=rand(0,W);y=H+20}
-      const hp = config.enemyBaseHealth + wave*6 + Math.random()*10;
-      const spd = config.enemySpeed + wave*2 + Math.random()*10;
-      setTimeout(()=> spawnEnemy(x,y,hp,spd), i*350);
-    }
-  }
-
-  // Джойстик
-  let joystickActive=false, joystickCenter={x:0,y:0}, joystickVector={x:0,y:0};
+  // Mobile joystick
   const joystick = document.getElementById('joystick');
   const joystickKnob = document.getElementById('joystickKnob');
-  function onJoystickStart(e){ e.preventDefault(); joystickActive=true; const rect=joystick.getBoundingClientRect(); joystickCenter={x:rect.left+rect.width/2,y:rect.top+rect.height/2}; }
-  function onJoystickMove(e){ if(!joystickActive) return; const t=e.touches?e.touches[0]:e; const dx=t.clientX-joystickCenter.x, dy=t.clientY-joystickCenter.y; const dist=Math.min(Math.hypot(dx,dy),40); const ang=Math.atan2(dy,dx); joystickVector.x=Math.cos(ang)*(dist/40); joystickVector.y=Math.sin(ang)*(dist/40); joystickKnob.style.transform=`translate(${joystickVector.x*40}px,${joystickVector.y*40}px)`; }
-  function onJoystickEnd(){ joystickActive=false; joystickVector.x=joystickVector.y=0; joystickKnob.style.transform=`translate(0,0)`; }
-  joystick.addEventListener('touchstart',onJoystickStart); joystick.addEventListener('touchmove',onJoystickMove); joystick.addEventListener('touchend',onJoystickEnd);
-  joystick.addEventListener('mousedown',onJoystickStart); window.addEventListener('mousemove',onJoystickMove); window.addEventListener('mouseup',onJoystickEnd);
+  let joyActive = false, joyCenter = {x:0,y:0}, joyVec = {x:0,y:0};
+  function joyStart(e){
+    e.preventDefault();
+    joyActive = true;
+    const rect = joystick.getBoundingClientRect();
+    joyCenter = {x: rect.left + rect.width/2, y: rect.top + rect.height/2};
+  }
+  function joyMove(e){
+    if(!joyActive) return;
+    const t = e.touches ? e.touches[0] : e;
+    const dx = t.clientX - joyCenter.x, dy = t.clientY - joyCenter.y;
+    const max = 36; // knob radius move limit
+    const d = Math.hypot(dx,dy);
+    const use = Math.min(d, max);
+    const ang = Math.atan2(dy,dx);
+    joyVec.x = Math.cos(ang) * (use / max);
+    joyVec.y = Math.sin(ang) * (use / max);
+    joystickKnob.style.transform = `translate(${joyVec.x*max}px, ${joyVec.y*max}px)`;
+  }
+  function joyEnd(){
+    joyActive = false;
+    joyVec.x = joyVec.y = 0;
+    joystickKnob.style.transform = `translate(0px,0px)`;
+  }
+  joystick.addEventListener('touchstart', joyStart, {passive:false});
+  joystick.addEventListener('touchmove', joyMove, {passive:false});
+  joystick.addEventListener('touchend', joyEnd, {passive:false});
+  joystick.addEventListener('mousedown', e => { joyStart(e); });
+  window.addEventListener('mousemove', joyMove);
+  window.addEventListener('mouseup', joyEnd);
 
-  // Кнопки
-  document.getElementById('btnShoot').addEventListener('touchstart',()=> shoot(mouse.x,mouse.y,{dmg:12,speed:700}));
-  document.getElementById('btnShoot').addEventListener('mousedown',()=> shoot(mouse.x,mouse.y,{dmg:12,speed:700}));
-  document.getElementById('btnMagic').addEventListener('touchstart',()=> castMagic());
-  document.getElementById('btnMagic').addEventListener('mousedown',()=> castMagic());
+  // Fire button behavior (hold to auto-fire)
+  let firingHeld = false, firingTimer = 0;
+  function startFiringHold(){ firingHeld = true; fireHoldOverlay.style.display = 'flex'; }
+  function stopFiringHold(){ firingHeld = false; fireHoldOverlay.style.display = 'none'; }
+  btnFire.addEventListener('touchstart', e => { e.preventDefault(); startFiringHold(); }, {passive:false});
+  btnFire.addEventListener('touchend', e => { e.preventDefault(); stopFiringHold(); }, {passive:false});
+  btnFire.addEventListener('mousedown', e => { e.preventDefault(); startFiringHold(); });
+  window.addEventListener('mouseup', e => stopFiringHold());
 
-  function update(dt){
-    if(joystickVector.x||joystickVector.y){
-      player.x += joystickVector.x * player.speed * dt;
-      player.y += joystickVector.y * player.speed * dt;
+  // Magic buttons
+  const magicConfig = {
+    fire: {cd:8},
+    ice: {cd:10},
+    strike: {cd:6}
+  };
+  btnMagic1.addEventListener('click', ()=> tryCastMagic('fire', btnMagic1, cdMagic1));
+  btnMagic2.addEventListener('click', ()=> tryCastMagic('ice', btnMagic2, cdMagic2));
+  btnMagic3.addEventListener('click', ()=> tryCastMagic('strike', btnMagic3, cdMagic3));
+  // touch support
+  btnMagic1.addEventListener('touchstart', e => { e.preventDefault(); tryCastMagic('fire', btnMagic1, cdMagic1); }, {passive:false});
+  btnMagic2.addEventListener('touchstart', e => { e.preventDefault(); tryCastMagic('ice', btnMagic2, cdMagic2); }, {passive:false});
+  btnMagic3.addEventListener('touchstart', e => { e.preventDefault(); tryCastMagic('strike', btnMagic3, cdMagic3); }, {passive:false});
+
+  // Weapon switching
+  document.getElementById('weaponPrev').addEventListener('click', ()=> {
+    player.weaponIndex = (player.weaponIndex + weapons.length - 1) % weapons.length; updateUI();
+  });
+  document.getElementById('weaponNext').addEventListener('click', ()=> {
+    player.weaponIndex = (player.weaponIndex + 1) % weapons.length; updateUI();
+  });
+  document.getElementById('toggleAuto').addEventListener('click', ()=> {
+    autoFire = !autoFire; toggleAutoBtn.textContent = 'Auto: ' + (autoFire ? 'ON' : 'OFF');
+  });
+
+  // Shop buttons
+  document.getElementById('buyBullets').addEventListener('click', ()=> { if(gold>=10){ gold-=10; player.ammo+=10; updateUI(); } });
+  document.getElementById('buyFood').addEventListener('click', ()=> { if(gold>=15){ gold-=15; player.food++; updateUI(); } });
+  document.querySelectorAll('[data-action="buyTower"]').forEach(btn=>{
+    btn.addEventListener('click', ()=> {
+      placingTower = {cost: +btn.dataset.cost || 30, power: +btn.dataset.power || 1};
+      // Next click on canvas places tower
+    });
+  });
+  document.getElementById('upgradeWeapon').addEventListener('click', ()=> {
+    if(gold>=50){ gold-=50; player.weaponPower++; updateUI(); }
+  });
+  document.getElementById('startWave').addEventListener('click', ()=> startWave());
+
+  // Place tower by clicking canvas
+  canvas.addEventListener('click', e => {
+    if(placingTower){
+      const rect = canvas.getBoundingClientRect();
+      const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+      const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+      if(dist(mx,my,player.x,player.y) > 60 && gold >= placingTower.cost){
+        towers.push({x:mx,y:my,range:(placingTower.power||1)*config.towerRange,fireRate:config.towerFireRate/(placingTower.power||1),lastFire:0,power:(placingTower.power||1),hp:80+(placingTower.power||0)*40});
+        gold -= placingTower.cost;
+      }
+      placingTower = null;
+      updateUI();
+    }
+  });
+
+  // Entities: spawn enemies with types and visuals
+  function spawnEnemyType(type, x, y, hp, spd){
+    const e = {type, x, y, r:12, hp, maxHp:hp, speed: spd, target: player, state: 'move', cooldown:0, color:'#6f6'};
+    // visuals and trait adjustments
+    if(type === 'normal'){ e.color = '#66cc66'; e.r = 12; }
+    if(type === 'fast'){ e.color = '#a6e22e'; e.r = 10; e.speed *= 1.6; }
+    if(type === 'tank'){ e.color = '#cc6666'; e.r = 18; e.hp *= 2; e.maxHp = e.hp; e.speed *= 0.6; }
+    if(type === 'ranged'){ e.color = '#88ccff'; e.r = 13; e.shootCooldown = 1.6; e.shootTimer = rand(0,1.2); }
+    if(type === 'boss'){ e.color = '#ffcc00'; e.r = 32; e.hp *= 6; e.maxHp = e.hp; e.speed *= 0.6; e.spawnTimer = 0; e.special=0; }
+    enemies.push(e);
+    return e;
+  }
+
+  function spawnEnemy(x,y, typeOverride){
+    const edge = Math.floor(Math.random()*4);
+    // Ensure coordinates from caller; here x,y passed
+    const typeRoll = typeOverride || (() => {
+      const r = Math.random();
+      if(r < 0.6) return 'normal';
+      if(r < 0.8) return 'fast';
+      if(r < 0.93) return 'ranged';
+      return 'tank';
+    })();
+    const hp = config.enemyBaseHealth + wave * 6 + Math.random()*10;
+    const spd = config.enemySpeed + wave * 1.5 + Math.random()*10;
+    return spawnEnemyType(typeRoll, x, y, hp, spd);
+  }
+
+  // spawn edge helper
+  function spawnFromEdge(type){
+    const edge = Math.floor(Math.random()*4);
+    let x,y;
+    if(edge===0){ x=-30; y = rand(0,H); }
+    if(edge===1){ x=W+30; y = rand(0,H); }
+    if(edge===2){ x = rand(0,W); y = -30; }
+    if(edge===3){ x = rand(0,W); y = H+30; }
+    spawnEnemyType(type || null, x, y, config.enemyBaseHealth + wave*6 + rand(-4,12), config.enemySpeed + rand(-8,12));
+  }
+
+  // Wave logic
+  function startWave(){
+    wave++;
+    waveEl.textContent = wave;
+    const baseCount = config.spawnPerWaveBase + Math.floor(wave * 1.5);
+    // every 5th wave spawn boss
+    if(wave % 5 === 0){
+      // spawn boss at edge
+      spawnFromEdge('boss');
+      // additional heavy enemies
+      for(let i=0;i<6;i++){
+        setTimeout(()=> spawnFromEdge(), i*350);
+      }
+      return;
+    }
+    for(let i=0;i<baseCount;i++){
+      setTimeout(()=> spawnFromEdge(), i*300);
+    }
+  }
+
+  // Projectiles creation
+  function fireProjectile(x,y,angle,speed,radius,dmg,opts={}){
+    projectiles.push({x,y,vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed, r:radius, dmg:dmg, ttl:3, age:0, source:opts.source || 'player', magic: opts.magic || null});
+  }
+
+  // Shooting logic (player)
+  function playerShootOnce(){
+    const w = weapons[player.weaponIndex];
+    if(player.ammo < w.ammoPerShot) return;
+    player.ammo -= w.ammoPerShot;
+    // aim angle
+    const ang = Math.atan2(pointer.y - player.y, pointer.x - player.x);
+    if(w.name === 'Дробовик'){
+      const pellets = w.ammoPerShot;
+      for(let i=0;i<pellets;i++){
+        const a = ang + rand(-w.spread/2, w.spread/2);
+        fireProjectile(player.x + Math.cos(a)*player.r, player.y + Math.sin(a)*player.r, a, 640, 5, w.dmg * player.weaponPower);
+      }
+    } else {
+      const a = ang + rand(-w.spread/2, w.spread/2);
+      fireProjectile(player.x + Math.cos(a)*player.r, player.y + Math.sin(a)*player.r, a, 780, 4, w.dmg * player.weaponPower);
+    }
+  }
+
+  // Magic implementations
+  function tryCastMagic(name, btnEl, cdEl){
+    if(!player.magicReady){} // still per-spell cooldowns below
+    if(player.magicCDs[name] > 0) return;
+    // cast at pointer location
+    const tx = pointer.x, ty = pointer.y;
+    if(name === 'fire'){
+      // fireball projectile that explodes
+      const ang = Math.atan2(ty-player.y, tx-player.x);
+      fireProjectile(player.x, player.y, ang, 420, 10, 0, {magic:'fireball', targetX:tx, targetY:ty});
+      player.magicCDs.fire = magicConfig.fire.cd;
+      showCooldown(cdEl, magicConfig.fire.cd);
+    } else if(name === 'ice'){
+      // ice shard that creates slow area
+      const ang = Math.atan2(ty-player.y, tx-player.x);
+      fireProjectile(player.x, player.y, ang, 520, 8, 0, {magic:'ice', targetX:tx, targetY:ty});
+      player.magicCDs.ice = magicConfig.ice.cd;
+      showCooldown(cdEl, magicConfig.ice.cd);
+    } else if(name === 'strike'){
+      // lightning strike: instant chain damage
+      castLightning(tx,ty);
+      player.magicCDs.strike = magicConfig.strike.cd;
+      showCooldown(cdEl, magicConfig.strike.cd);
     }
     updateUI();
   }
+
+  function showCooldown(el, seconds){
+    el.style.display = 'flex';
+    el.textContent = Math.ceil(seconds);
+    let t = seconds;
+    const interval = setInterval(()=> {
+      t -= 0.2;
+      if(t <= 0){
+        clearInterval(interval);
+        el.style.display = 'none';
+      } else {
+        el.textContent = Math.ceil(t);
+      }
+    }, 200);
+  }
+
+  function castLightning(tx,ty){
+    // find up to 4 nearest enemies to point
+    const list = enemies.slice().sort((a,b)=> dist(a.x,a.y,tx,ty) - dist(b.x,b.y,tx,ty)).slice(0,4);
+    let fromX = tx, fromY = ty;
+    list.forEach((e,i)=>{
+      // damage and particle beam
+      e.hp -= 55 + wave*2;
+      for(let k=0;k<10;k++) particles.push({x: fromX + rand(-6,6), y: fromY + rand(-6,6), vx:rand(-200,200), vy:rand(-200,200), life:0.3+Math.random()*0.5, col:'#aef'});
+      // lightning arc visual: small projectile like effect
+      projectiles.push({x:fromX,y:fromY,vx:0,vy:0, r:3, dmg:0, ttl:0.18, age:0, magic:'light', target: e});
+      fromX = e.x; fromY = e.y;
+    });
+  }
+
+  // Towers auto-fire
+  function towerLogic(dt){
+    towers.forEach(t=>{
+      t.lastFire += dt;
+      if(t.lastFire >= t.fireRate){
+        t.lastFire = 0;
+        // target nearest enemy in range
+        let best = null, bd = 1e9;
+        enemies.forEach(e=>{
+          const d = dist(e.x,e.y,t.x,t.y);
+          if(d <= t.range && d < bd){ bd = d; best = e; }
+        });
+        if(best){
+          const ang = Math.atan2(best.y - t.y, best.x - t.x);
+          projectiles.push({x:t.x + Math.cos(ang)*14, y: t.y + Math.sin(ang)*14, vx:Math.cos(ang)*320, vy:Math.sin(ang)*320, r:5, dmg:8 * t.power, ttl:2, source:'tower'});
+        }
+      }
+    });
+  }
+
+  // Update loop
+  function update(dt){
+    // player movement by joystick
+    if(joyVec.x !== 0 || joyVec.y !== 0){
+      player.x += joyVec.x * player.speed * dt;
+      player.y += joyVec.y * player.speed * dt;
+    } else {
+      // no joystick movement on desktop; WASD could be added
+    }
+    // clamp
+    player.x = clamp(player.x, 20, W-20);
+    player.y = clamp(player.y, 20, H-20);
+
+    // update facing toward pointer slightly
+    player.facingX += (pointer.x - player.facingX) * clamp(dt*6, 0, 1);
+    player.facingY += (pointer.y - player.facingY) * clamp(dt*6, 0, 1);
+
+    // handle placing tower? handled via click earlier
+
+    // auto fire management
+    player.firingCooldown -= dt;
+    if((firingHeld || autoFire) && player.firingCooldown <= 0){
+      player.firingCooldown = weapons[player.weaponIndex].rate;
+      playerShootOnce();
+    }
+
+    // update projectiles
+    for(let i = projectiles.length-1; i>=0; i--){
+      const p = projectiles[i];
+      if(p.target){ // lightning visual: instantly mark and remove after ttl
+        p.ttl -= dt; if(p.ttl <= 0) projectiles.splice(i,1);
+        continue;
+      }
+      p.age += dt;
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.ttl -= dt;
+      // if magic projectile reaches target location -> explosion effect
+      if(p.magic === 'fireball' && Math.hypot(p.x - p.x, p.y - p.y) && p.ttl <= 1.8){ /* no-op placeholder */ }
+      if(p.ttl <= 0 || p.x < -50 || p.x > W+50 || p.y < -50 || p.y > H+50){
+        // explosion for magic projectiles on end
+        if(p.magic === 'fireball'){
+          spawnExplosion(p.x, p.y, 60, 60 + wave*6, '#ff8a33');
+        }
+        if(p.magic === 'ice'){
+          spawnIceField(p.x, p.y, 70);
+        }
+        projectiles.splice(i,1);
+      }
+    }
+
+    // tower logic
+    towerLogic(dt);
+
+    // enemies update
+    for(let i = enemies.length-1; i>=0; i--){
+      const e = enemies[i];
+      // special boss behavior
+      if(e.type === 'boss'){
+        e.spawnTimer -= dt;
+        if(e.spawnTimer <= 0){
+          // spawn minions periodically
+          spawnEnemyType('fast', e.x + rand(-40,40), e.y + rand(-40,40), config.enemyBaseHealth * 0.8, config.enemySpeed * 1.4);
+          e.spawnTimer = 4 + Math.random()*3;
+        }
+      }
+      // ranged enemy shoots
+      if(e.type === 'ranged'){
+        e.shootTimer -= dt;
+        if(e.shootTimer <= 0){
+          e.shootTimer = e.shootCooldown;
+          const ang = Math.atan2(player.y - e.y, player.x - e.x);
+          projectiles.push({x:e.x + Math.cos(ang)*12, y:e.y + Math.sin(ang)*12, vx:Math.cos(ang)*260, vy:Math.sin(ang)*260, r:5, dmg:12, ttl:3, source:'enemy'});
+        }
+      }
+
+      // movement toward nearest target (player or towers)
+      let tx = player.x, ty = player.y;
+      // prefer nearest tower if closer
+      let nearestTower=null, td=1e9;
+      towers.forEach(tw=>{ const d = dist(tw.x,tw.y,e.x,e.y); if(d < td){ td = d; nearestTower = tw; } });
+      if(nearestTower && td < dist(player.x,player.y,e.x,e.y)) { tx = nearestTower.x; ty = nearestTower.y; }
+
+      const dx = tx - e.x, dy = ty - e.y;
+      const d = Math.hypot(dx,dy) || 1;
+      e.x += dx/d * e.speed * dt;
+      e.y += dy/d * e.speed * dt;
+
+      // collision with player
+      if(dist(e.x,e.y,player.x,player.y) < e.r + player.r){
+        // damage player
+        player.hp -= ( (e.type === 'fast') ? 9 : (e.type === 'tank' ? 18 : 12) ) * dt * (e.type === 'boss' ? 2 : 1);
+        // small push
+        const pushAng = Math.atan2(player.y - e.y, player.x - e.x);
+        player.x += Math.cos(pushAng) * 6 * dt;
+        player.y += Math.sin(pushAng) * 6 * dt;
+      }
+
+      // collision with towers
+      for(let j = towers.length-1; j>=0; j--){
+        const t = towers[j];
+        if(dist(e.x,e.y,t.x,t.y) < e.r + 10){
+          t.hp -= 12 * dt;
+          if(t.hp <= 0){
+            // tower destroyed
+            for(let k=0;k<14;k++) particles.push({x:t.x,y:t.y,vx:rand(-200,200),vy:rand(-200,200),life:0.6+Math.random()*0.6,col:'#888'});
+            towers.splice(j,1);
+          }
+        }
+      }
+
+      // remove dead enemy
+      if(e.hp <= 0){
+        // gold drop
+        gold += Math.round(config.goldPerKill + Math.random()*6 + (e.type==='boss'?60:0));
+        // particles
+        for(let k=0;k<14;k++) particles.push({x:e.x,y:e.y,vx:rand(-160,160),vy:rand(-160,160),life:0.5+Math.random()*0.6,col:'#66ff66'});
+        enemies.splice(i,1);
+      }
+    }
+
+    // projectile hits
+    for(let i = projectiles.length-1; i>=0; i--){
+      const p = projectiles[i];
+      if(p.target) continue; // lightning visuals handled separately
+      // player projectile hitting enemies
+      if(p.source === 'player' || p.source === 'tower'){
+        for(let j=enemies.length-1;j>=0;j--){
+          const e = enemies[j];
+          if(dist(p.x,p.y,e.x,e.y) < p.r + e.r){
+            // apply damage
+            if(p.magic === 'fireball'){
+              // area damage
+              spawnExplosion(p.x, p.y, 60, 60 + wave*6, '#ff8a33');
+            } else if(p.magic === 'ice'){
+              spawnIceField(p.x, p.y, 80);
+            } else {
+              e.hp -= p.dmg;
+              // hit particles
+              for(let k=0;k<6;k++) particles.push({x:p.x,y:p.y,vx:rand(-120,120),vy:rand(-120,120),life:0.25+Math.random()*0.4,col:'#fff'});
+            }
+            // damage tower/enemy-specific reactive behavior
+            if(p.magic !== 'fireball' && p.magic !== 'ice') projectiles.splice(i,1);
+            break;
+          }
+        }
+      } else if(p.source === 'enemy'){
+        // enemy projectiles can hit player
+        if(dist(p.x,p.y,player.x,player.y) < p.r + player.r){
+          player.hp -= p.dmg;
+          for(let k=0;k<6;k++) particles.push({x:player.x + rand(-8,8), y:player.y + rand(-8,8), vx:rand(-120,120), vy:rand(-120,120), life:0.2+Math.random()*0.4, col:'#f66'});
+          projectiles.splice(i,1);
+        }
+      }
+    }
+
+    // particles update
+    for(let i=particles.length-1;i>=0;i--){
+      const p = particles[i];
+      p.x += (p.vx || 0) * dt; p.y += (p.vy || 0) * dt;
+      p.vx *= 0.98; p.vy *= 0.98;
+      p.life -= dt;
+      if(p.life <= 0) particles.splice(i,1);
+    }
+    // trim particles
+    if(particles.length > config.maxParticles) particles.splice(0, particles.length - config.maxParticles);
+
+    // magic cooldowns
+    for(const k of Object.keys(player.magicCDs)){
+      if(player.magicCDs[k] > 0) player.magicCDs[k] = Math.max(0, player.magicCDs[k] - dt);
+    }
+
+    // give small passive gold
+    if(Math.random() < dt * 0.08) gold += 0; // trivial
+
+    // game over check
+    if(player.hp <= 0){
+      setTimeout(()=> {
+        if(confirm('Вы погибли! Начать заново?')){
+          resetGame();
+        } else {
+          // stop game loop by setting speed to 0
+          running = false;
+        }
+      }, 50);
+    }
+
+    updateUI();
+  }
+
+  // Explosion AOE
+  function spawnExplosion(x,y, radius, dmg, color){
+    // damage nearby enemies
+    enemies.forEach(e=>{
+      const d = dist(e.x,e.y,x,y);
+      if(d < radius){
+        const mult = 1 - d / radius;
+        e.hp -= dmg * mult;
+      }
+    });
+    // particles
+    for(let i=0;i<26;i++) particles.push({x:x + rand(-8,8), y:y + rand(-8,8), vx:rand(-400,400), vy:rand(-400,400), life:0.6+Math.random()*0.6, col: color || '#ff8a33'});
+  }
+
+  // Ice field: slows enemies
+  const iceFields = [];
+  function spawnIceField(x,y, radius){
+    iceFields.push({x,y,radius,life:4});
+    for(let i=0;i<18;i++) particles.push({x:x+rand(-radius,radius), y:y+rand(-radius,radius), vx:rand(-80,80), vy:rand(-80,80), life:0.6+Math.random()*0.6, col:'#cfefff'});
+    // apply slowing instantly
+    enemies.forEach(e => {
+      const d = dist(e.x,e.y,x,y);
+      if(d < radius) e.speed *= 0.5;
+    });
+    // restore speeds after duration (handled in draw)
+  }
+
+  // Lightning visuals handled in projectiles array as target linked entries
+
+  // reset
+  function resetGame(){
+    gold = 75; wave = 0; enemies = []; projectiles = []; towers = []; particles = []; iceFields.length = 0;
+    player.hp = player.hpMax; player.ammo = 50; player.food = 0; player.weaponIndex = 0; player.weaponPower = 1;
+    running = true;
+    updateUI();
+  }
+
+  // UI updates
   function updateUI(){
-    hpbar.style.width = (player.hp/player.hpMax*100)+'%';
-    hptext.textContent=Math.round(player.hp)+' / '+player.hpMax;
-    goldEl.textContent=Math.round(gold);
-    waveEl.textContent=wave;
-    enemiesCountEl.textContent=enemies.length;
-    ammoEl.textContent=player.ammo;
-    foodEl.textContent=player.food;
-    magicReadyEl.textContent=player.magicReady ? 'Да' : Math.ceil(player.magicCooldown)+'с';
-    weaponNameEl.textContent=player.weaponPower>1 ? `Пистолет +${player.weaponPower-1}` : 'Пистолет';
+    hpbar.style.width = Math.max(0, (player.hp / player.hpMax * 100)) + '%';
+    hptext.textContent = Math.round(player.hp) + ' / ' + player.hpMax;
+    goldEl.textContent = Math.round(gold);
+    waveEl.textContent = wave;
+    enemiesCountEl.textContent = enemies.length;
+    ammoEl.textContent = player.ammo;
+    foodEl.textContent = player.food;
+    // magic status text
+    const ms = [];
+    ms.push(player.magicCDs.fire > 0 ? 'FIRE:' + Math.ceil(player.magicCDs.fire) + 'с' : 'FIRE:Г');
+    ms.push(player.magicCDs.ice > 0 ? 'ICE:' + Math.ceil(player.magicCDs.ice) + 'с' : 'ICE:Г');
+    ms.push(player.magicCDs.strike > 0 ? 'STRK:' + Math.ceil(player.magicCDs.strike) + 'с' : 'STRK:Г');
+    magicStatusEl.textContent = ms.join(' ');
+    weaponNameEl.textContent = weapons[player.weaponIndex].name + (player.weaponPower>1?(' +' + (player.weaponPower-1)):'');
   }
-  function draw(){
-    const time=now();
-    let dt=lastTime?(time-lastTime):0; lastTime=time; dt=Math.min(dt,0.05);
-    update(dt);
+
+  // Main render
+  function render(){
     ctx.clearRect(0,0,W,H);
-    requestAnimationFrame(draw);
+    // floor
+    ctx.save();
+    ctx.fillStyle = '#08120a';
+    ctx.fillRect(0,0,W,H);
+    // grid
+    ctx.globalAlpha = 0.03;
+    ctx.fillStyle = '#fff';
+    for(let gx=0; gx<W; gx += 40) ctx.fillRect(gx,0,1,H);
+    for(let gy=0; gy<H; gy += 40) ctx.fillRect(0,gy,W,1);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    // towers
+    towers.forEach(t=>{
+      // range faint
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, t.range, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(30,60,30,0.03)'; ctx.fill();
+      ctx.restore();
+
+      // body
+      ctx.save();
+      ctx.translate(t.x,t.y);
+      ctx.fillStyle = '#6b7b4a';
+      ctx.fillRect(-14,-14,28,28);
+      ctx.fillStyle = '#333';
+      ctx.fillRect(8,-5,18,10);
+      ctx.restore();
+
+      // hp
+      ctx.save();
+      ctx.fillStyle = '#222';
+      ctx.fillRect(t.x-20, t.y-30, 40,6);
+      ctx.fillStyle = '#6f6';
+      ctx.fillRect(t.x-20, t.y-30, 40 * clamp(t.hp / (80 + (t.power)*40), 0, 1), 6);
+      ctx.restore();
+    });
+
+    // ice fields
+    iceFields.forEach(f => {
+      ctx.save();
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = '#cfefff';
+      ctx.beginPath(); ctx.arc(f.x,f.y,f.radius,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    });
+
+    // enemies
+    enemies.forEach(e=>{
+      ctx.save();
+      ctx.translate(e.x,e.y);
+      // body
+      ctx.beginPath();
+      ctx.fillStyle = e.color;
+      ctx.arc(0,0, e.r, 0, Math.PI*2); ctx.fill();
+
+      // eyes or mark
+      ctx.fillStyle = '#111';
+      ctx.fillRect(-6,-4,4,3); ctx.fillRect(2,-4,4,3);
+
+      // boss special
+      if(e.type === 'boss'){
+        ctx.fillStyle = '#222';
+        ctx.font = '12px Arial';
+        ctx.fillText('BOSS', -20, -e.r - 8);
+      }
+      ctx.restore();
+
+      // hp bar
+      ctx.save();
+      ctx.fillStyle = '#222';
+      ctx.fillRect(e.x - 20, e.y - e.r - 18, 40,6);
+      ctx.fillStyle = '#f66';
+      ctx.fillRect(e.x - 20, e.y - e.r - 18, 40 * clamp(e.hp / e.maxHp, 0, 1), 6);
+      ctx.restore();
+    });
+
+    // projectiles
+    projectiles.forEach(p=>{
+      ctx.save();
+      if(p.magic === 'fireball'){
+        ctx.beginPath(); ctx.fillStyle = '#ff7a33'; ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+      } else if(p.magic === 'ice'){
+        ctx.beginPath(); ctx.fillStyle = '#9fe'; ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+      } else if(p.magic === 'light'){
+        // lightning visual to target
+        if(p.target){
+          ctx.strokeStyle = '#9fe';
+          ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(p.target.x, p.target.y); ctx.stroke();
+        } else {
+          ctx.beginPath(); ctx.fillStyle = '#fff'; ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+        }
+      } else {
+        ctx.beginPath(); ctx.fillStyle = '#fff'; ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+      }
+      ctx.restore();
+    });
+
+    // player
+    ctx.save();
+    ctx.translate(player.x, player.y);
+    // body
+    ctx.beginPath(); ctx.fillStyle = '#4aa3ff'; ctx.arc(0,0, player.r, 0, Math.PI*2); ctx.fill();
+    // orientation triangle
+    const ang = Math.atan2(player.facingY - player.y, player.facingX - player.x);
+    ctx.fillStyle = '#072';
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(ang)*player.r, Math.sin(ang)*player.r); ctx.lineTo(Math.cos(ang+0.9)*player.r*0.6, Math.sin(ang+0.9)*player.r*0.6); ctx.fill();
+    ctx.restore();
+
+    // particles
+    particles.forEach(p=>{
+      ctx.save();
+      ctx.globalAlpha = clamp(p.life, 0, 1);
+      ctx.fillStyle = p.col || '#fff';
+      ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    });
+
+    // HUD small
+    ctx.save();
+    ctx.fillStyle = '#ddd';
+    ctx.font = '13px Arial';
+    ctx.fillText('HP: ' + Math.round(player.hp) + '  Ammo: ' + player.ammo + '  Gold: ' + Math.round(gold) + '  Wave: ' + wave, 12, H - 12);
+    ctx.restore();
   }
+
+  // main loop
+  let running = true;
+  function loop(ts){
+    if(!lastTime) lastTime = ts;
+    const dt = Math.min(0.05, (ts - lastTime) / 1000);
+    lastTime = ts;
+    if(running){
+      update(dt);
+      render();
+      // decrement some magic cooldown UI numbers (handled visually when casting)
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // initial
+  resetGame();
   startWave();
-  requestAnimationFrame(draw);
+
+  // helper: reduce ice effect duration and restore speed (simple)
+  setInterval(() => {
+    // decrement ice fields life
+    for(let i=iceFields.length-1;i>=0;i--){
+      const f = iceFields[i];
+      f.life -= 0.5;
+      if(f.life <= 0){
+        // restore enemy speed by resetting to baseline relative to wave — simple approach: recompute all enemies speed base
+        enemies.forEach(e => {
+          // reset approximate base speed by type
+          if(e.type === 'fast') e.speed = (config.enemySpeed + wave * 1.5 + rand(-6,6)) * 1.6;
+          else if(e.type === 'tank') e.speed = (config.enemySpeed + wave * 1.5 + rand(-6,6)) * 0.6;
+          else e.speed = (config.enemySpeed + wave * 1.5 + rand(-6,6));
+          if(e.type === 'boss') e.speed *= 0.6;
+        });
+        iceFields.splice(i,1);
+      } else {
+        // slow enemies inside field
+        enemies.forEach(e => {
+          if(dist(e.x,e.y,f.x,f.y) < f.radius) e.speed *= 0.98;
+        });
+      }
+    }
+  }, 500);
+
+  // periodic spawn small gold/pickups maybe
+  setInterval(()=> {
+    // small passive gold to prevent stagnation
+    gold += 1;
+    updateUI();
+  }, 7000);
+
+  // explosion spawn used by fireball etc is above
+
+  // reset on window blur? not necessary
+
+  // keyboard quick actions
+  window.addEventListener('keydown', e => {
+    if(e.key === '1') player.weaponIndex = 0;
+    if(e.key === '2') player.weaponIndex = 1;
+    if(e.key === '3') player.weaponIndex = 2;
+    if(e.key === 'e' || e.key === 'E'){
+      if(player.food > 0 && player.hp < player.hpMax){
+        player.food--; player.hp = clamp(player.hp + 30, 0, player.hpMax);
+        for(let i=0;i<12;i++) particles.push({x:player.x+rand(-8,8), y:player.y+rand(-8,8), vx:rand(-60,60), vy:rand(-60,60), life:0.6, col:'#88ff88'});
+      }
+    }
+    updateUI();
+  });
+
+  // toggle fire hold to have auto-like for desktop
+  setInterval(()=> {
+    // handle continuous firing when firingHeld is true on desktop/mobile
+    // we use player's firing cooldown and in update auto fire if firingHeld or autoFire
+  }, 200);
+
+  // simple explanatory notification
+  console.log('Zombie Defense — loaded. Use joystick to move, tap to aim, hold Fire to shoot.');
+
 })();
 </script>
 </body>
