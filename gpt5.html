@@ -1,1439 +1,530 @@
-<!DOCTYPE html>
-
+<!doctype html>
 <html lang="ru">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Arcade Runner — Встроенная Браузерная Игра</title>
+<title>Zombie Shooter — одна страница</title>
 <style>
-/* ============================
-   Arcade Runner — CSS
-   - Минималистичный адаптивный интерфейс
-   - Контрастная тема по умолчанию; переключаемая тема в JS
-   ============================ */
-
-\:root{
-\--bg:#0b1220;
-\--panel:#0f1724;
-\--accent:#4ee1a6;
-\--danger:#ff5c5c;
-\--muted:#9aa6b2;
-\--text:#e6eef3;
-\--ui-bg: rgba(255,255,255,0.03);
-\--glass: rgba(255,255,255,0.04);
-\--font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-\--safe-contrast: 1;
-}
-
-\*{box-sizing\:border-box}
-html,body{height:100%;margin:0;background\:var(--bg);color\:var(--text);font-family\:var(--font-sans);-webkit-font-smoothing\:antialiased}
-\#game-root{display\:flex;flex-direction\:column;height:100vh;gap:8px;padding:12px}
-
-/\* Top bar with score/level/health \*/
-.topbar{
-display\:flex;gap:8px;align-items\:center;justify-content\:space-between;
-}
-.hud{
-display\:flex;gap:8px;align-items\:center;background\:var(--glass);padding:8px;border-radius:8px;min-width:0;
-}
-.hud .item{display\:flex;flex-direction\:column;min-width:80px}
-.hud .label{font-size:12px;color\:var(--muted)}
-.hud .value{font-weight:700;font-size:16px}
-
-/\* Main canvas area \*/
-.stage{
-display\:flex;flex:1;align-items\:stretch;position\:relative;border-radius:12px;overflow\:hidden;background:
-linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
-box-shadow: 0 6px 18px rgba(0,0,0,0.6) inset;
-}
-
-/\* Canvas itself \*/
-\#gameCanvas{
-width:100%;height:100%;display\:block;background\:transparent;
-touch-action\:none;
-}
-
-/\* Side panels / overlays \*/
-.ui-overlay{
-position\:absolute;right:12px;top:12px;display\:flex;flex-direction\:column;gap:8px;z-index:30;
-}
-.button, .pill{
-background\:var(--ui-bg);border-radius:8px;padding:8px 12px;border:1px solid rgba(255,255,255,0.04);cursor\:pointer;
-}
-.button\[aria-pressed="true"]{outline:2px solid rgba(255,255,255,0.06)}
-.menu{
-position\:absolute;left:50%;top:50%;transform\:translate(-50%,-50%);z-index:50;background\:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));
-border-radius:12px;padding:18px;width\:min(720px,94vw);box-shadow:0 10px 40px rgba(2,6,23,0.7);border:1px solid rgba(255,255,255,0.04)
-}
-.menu h1{margin:0 0 8px 0;font-size:20px}
-.menu .row{display\:flex;gap:8px;flex-wrap\:wrap}
-.menu .spacer{height:12px}
-.controls-legend{font-size:13px;color\:var(--muted);margin-top:8px}
-
-/\* Mobile controls (touch) \*/
-.touch-controls{
-position\:absolute;left:12px;bottom:12px;z-index:60;display\:flex;gap:8px;align-items\:end;
-}
-.touch-btn{
-width:64px;height:64px;border-radius:12px;display\:flex;align-items\:center;justify-content\:center;background\:var(--ui-bg);
-border:1px solid rgba(255,255,255,0.04);font-weight:700;user-select\:none;
-touch-action\:none;
-}
-
-/\* Small screens adjustments \*/
-@media (max-width:600px){
-.hud .item{min-width:60px}
-.menu{padding:14px}
-.button{padding:8px}
-.touch-btn{width:56px;height:56px;border-radius:10px}
-}
-
-/\* Accessibility focus \*/
-.button\:focus,.touch-btn\:focus{outline:2px dashed var(--accent);outline-offset:2px}
-
-/\* Achievement/toast \*/
-.toast{
-position\:absolute;left:50%;transform\:translateX(-50%);top:8%;background\:var(--panel);padding:8px 14px;border-radius:999px;font-weight:600;
-box-shadow:0 6px 16px rgba(0,0,0,0.6);z-index:70;border:1px solid rgba(255,255,255,0.03)
-}
-
-/\* small footer with credits & keys \*/
-.footer{display\:flex;justify-content\:space-between;align-items\:center;font-size:13px;color\:var(--muted);padding-top:6px}
-.legend{color\:var(--muted);font-size:13px}
-
-/\* progress bar for health \*/
-.health-bar{width:160px;height:12px;background\:rgba(255,255,255,0.05);border-radius:6px;overflow\:hidden;border:1px solid rgba(255,255,255,0.03)}
-.health-fill{height:100%;background\:linear-gradient(90deg,var(--accent), #2ad3b3);width:100%}
-
-/\* small input styles \*/
-input\[type="range"]{width:140px}
-.select{background\:transparent;border:1px solid rgba(255,255,255,0.04);padding:6px;border-radius:6px;color\:var(--text)}
-
-/\* visually-hidden for accessibility \*/
-.vh{position\:absolute!important;height:1px;width:1px;overflow\:hidden;clip\:rect(1px,1px,1px,1px);white-space\:nowrap} </style>
-
+  html,body{height:100%;margin:0;background:#111;color:#eee;font-family:Segoe UI,Roboto,Arial}
+  #gameWrap{display:flex;flex-direction:column;align-items:center;padding:10px}
+  canvas{background:#0b0b0b;border:4px solid #222;box-shadow:0 6px 20px rgba(0,0,0,0.8);touch-action:none}
+  #hud{width:820px;display:flex;justify-content:space-between;align-items:center;margin:8px 0}
+  .stat{background:rgba(255,255,255,0.03);padding:8px 12px;border-radius:6px}
+  #shopBtn{cursor:pointer;padding:8px 12px;border-radius:6px;background:#1f8cff;border:2px solid #145ea8}
+  #shop{position:fixed;right:18px;top:18px;width:320px;background:#0e0e0e;border:2px solid #333;padding:12px;border-radius:8px;display:none;z-index:20}
+  #shop h3{margin:0 0 8px 0}
+  .weapon{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:6px;margin-bottom:8px;background:rgba(255,255,255,0.02)}
+  .btnBuy{background:#2ecc71;padding:6px 8px;border-radius:6px;border:0;color:#062b16;cursor:pointer}
+  .btnEquip{background:#f1c40f;padding:6px 8px;border-radius:6px;border:0;color:#2c1f00;cursor:pointer}
+  #gameOver{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#0b0b0b;padding:18px;border:2px solid #333;border-radius:8px;display:none;z-index:30}
+  button{font-family:inherit}
+  #controls{font-size:13px;color:#cfcfcf;margin-top:6px}
+  .hpBar{width:140px;height:12px;background:#333;border-radius:6px;overflow:hidden}
+  .hpFill{height:100%;background:linear-gradient(90deg,#f44336,#ff9800)}
+  .coin{font-weight:700;color:#ffd54f}
+  small{color:#999}
+</style>
 </head>
 <body>
-<!--
-  Arcade Runner — одностраничная игра
-  -----------------------------------
-  Структура файла:
-  - CSS в <style> выше: базовые темы и адаптивность.
-  - HTML-часть: контейнер #game-root с HUD, canvas, меню, контролами.
-  - JS внизу: модульный ES6-код (классы Entity, Player, Enemy, Powerup, Particle, Game),
-    управление, рендер через canvas, сохранение в localStorage, WebAudio синтезаторы,
-    достижения и настройки.
-  Комментарии в коде на русском по всему файлу. TODO помечены для будущего расширения.
--->
-
-<div id="game-root">
-  <div class="topbar" role="region" aria-label="Верхняя панель игры">
-    <div class="hud" aria-hidden="false">
-      <div class="item" id="scoreItem">
-        <div class="label">Очки</div>
-        <div class="value" id="score">0</div>
-      </div>
-      <div class="item">
-        <div class="label">Уровень</div>
-        <div class="value" id="level">1</div>
-      </div>
-      <div class="item">
-        <div class="label">Жизни</div>
-        <div class="value" id="lives">3</div>
-      </div>
-      <div class="item">
-        <div class="label">Здоровье</div>
-        <div class="value">
-          <div class="health-bar" aria-hidden="true"><div id="healthFill" class="health-fill" style="width:100%"></div></div>
-        </div>
-      </div>
-    </div>
-
-```
-<div style="display:flex;gap:8px;align-items:center">
-  <button id="pauseBtn" class="button" aria-label="Пауза (Esc)" aria-pressed="false">Пауза</button>
-  <button id="menuBtn" class="button" aria-label="Меню" aria-haspopup="dialog">Меню</button>
-</div>
-```
-
+<div id="gameWrap">
+  <div id="hud" style="width:820px">
+    <div class="stat">Здоровье: <span id="hpText">100</span></div>
+    <div class="stat">Монеты: <span id="coins" class="coin">0</span></div>
+    <div class="stat">Волна: <span id="wave">1</span></div>
+    <div><button id="shopBtn">SHOP</button></div>
   </div>
 
-  <div class="stage" id="stage" role="main" aria-label="Игровое поле">
-    <canvas id="gameCanvas" width="1280" height="720" role="img" aria-label="Игровая зона"></canvas>
-
-```
-<!-- UI overlays -->
-<div class="ui-overlay" id="uiOverlay" aria-hidden="true">
-  <div class="pill" id="bestPill">Рекорд: <span id="bestScore">0</span></div>
-  <div class="pill" id="themePill">Тема: <span id="themeName">Default</span></div>
-</div>
-
-<!-- Touch controls for mobile -->
-<div class="touch-controls" id="touchControls" aria-hidden="true">
-  <div class="touch-btn" id="btnLeft" aria-label="Влево">◀</div>
-  <div style="display:flex;flex-direction:column;gap:8px">
-    <div class="touch-btn" id="btnJump" aria-label="Прыжок">⤴</div>
-    <div class="touch-btn" id="btnShoot" aria-label="Стрелять">●</div>
-  </div>
-  <div class="touch-btn" id="btnRight" aria-label="Вправо">▶</div>
-</div>
-
-<!-- Central menu/modal -->
-<div class="menu" id="menu" role="dialog" aria-modal="true" aria-hidden="true" style="display:none">
-  <h1 id="menuTitle">Arcade Runner</h1>
-  <div id="menuContent">
-    <div class="row" id="menuMain">
-      <button class="button" id="startBtn" aria-label="Начать игру">Начать</button>
-      <button class="button" id="continueBtn" aria-label="Продолжить" style="display:none">Продолжить</button>
-      <button class="button" id="modesBtn" aria-label="Режимы">Режимы</button>
-      <button class="button" id="settingsBtn" aria-label="Настройки">Настройки</button>
-    </div>
-
-    <!-- Modes view -->
-    <div id="modesView" style="display:none">
-      <div class="spacer"></div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <label>Режим:</label>
-        <select id="gameMode" class="select" aria-label="Режим игры">
-          <option value="infinite">Бесконечный</option>
-          <option value="levels">Уровни (цель: 5000 очков)</option>
-        </select>
-        <label>Сложность:</label>
-        <select id="difficultySelect" class="select" aria-label="Сложность">
-          <option value="easy">Лёгкий</option>
-          <option value="hard">Сложный</option>
-        </select>
-      </div>
-      <div class="spacer"></div>
-      <div style="display:flex;gap:8px">
-        <button class="button" id="modesBack">Назад</button>
-        <button class="button" id="modesApply">Применить и начать</button>
-      </div>
-    </div>
-
-    <!-- Settings view -->
-    <div id="settingsView" style="display:none">
-      <div class="spacer"></div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <label for="soundToggle">Звук:</label>
-        <select id="soundToggle" class="select" aria-label="Звук вкл/выкл">
-          <option value="on">Вкл</option>
-          <option value="off">Выкл</option>
-        </select>
-
-        <label for="sensitivityRange">Чувствительность:</label>
-        <input id="sensitivityRange" type="range" min="0.5" max="2.0" step="0.1" value="1" aria-label="Чувствительность управления">
-
-        <label for="themeSelect">Тема:</label>
-        <select id="themeSelect" class="select" aria-label="Выбор цветовой темы">
-          <option value="default">Default</option>
-          <option value="sunset">Sunset</option>
-          <option value="neon">Neon</option>
-          <option value="light">Light</option>
-        </select>
-      </div>
-
-      <div class="spacer"></div>
-      <div style="display:flex;gap:8px">
-        <button class="button" id="resetBtn">Сбросить рекорды/достижения</button>
-        <button class="button" id="settingsBack">Назад</button>
-      </div>
-    </div>
-
-    <!-- Achievements view -->
-    <div id="achievementsView" style="display:none">
-      <div class="spacer"></div>
-      <div id="achList" style="display:flex;flex-direction:column;gap:8px"></div>
-      <div class="spacer"></div>
-      <button class="button" id="achBack">Назад</button>
-    </div>
-
-  </div>
-  <div class="controls-legend">Нажмите Esc — чтобы закрыть/поставить на паузу. Все настройки сохраняются.</div>
-</div>
-
-<!-- Toast for achievements -->
-<div id="toast" class="toast" style="display:none" role="status" aria-live="polite"></div>
-
-<!-- Game over / victory overlays -->
-<div id="overlayScreen" class="menu" style="display:none" role="dialog" aria-hidden="true">
-  <h1 id="overlayTitle">Game Over</h1>
-  <div id="overlayBody" style="margin-top:8px"></div>
-  <div style="display:flex;gap:8px;margin-top:12px">
-    <button class="button" id="retryBtn">Попробовать снова</button>
-    <button class="button" id="overlayMenuBtn">В меню</button>
+  <canvas id="game" width="820" height="520"></canvas>
+  <div id="controls">
+    Двигайся: <b>W A S D</b> или стрелки • Стрелять: <b>ЛКМ</b> • Открой магазин: кнопка <b>SHOP</b>
   </div>
 </div>
-```
 
+<div id="shop" aria-hidden="true">
+  <h3>Магазин оружия</h3>
+  <div id="weaponsList"></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+    <div><small>Нажмите &quot;Купить&quot; чтобы приобрести. &quot;Экипировать&quot; — сменить оружие.</small></div>
+    <div><button id="closeShop" style="padding:6px 10px">Закрыть</button></div>
   </div>
+</div>
 
-  <div class="footer">
-    <div class="legend">© Arcade Runner — Встроенная игра — (нажмите M для меню)</div>
-    <div id="fpsBadge" class="legend">FPS: <span id="fps">0</span></div>
-  </div>
+<div id="gameOver">
+  <h2 id="goTitle">Ты погиб...</h2>
+  <div style="margin:8px 0">Монеты: <span id="finalCoins"></span></div>
+  <button id="restart">Попробовать снова</button>
 </div>
 
 <script>
-/* ===========================================================
-   Arcade Runner — Основной JS
-   - Модульная структура: глобальная Game с сущностями (Entity)
-   - Использует canvas + requestAnimationFrame
-   - Сохранение настроек/рекордов/достижений в localStorage
-   - WebAudio синтез для коротких эффектов
-   - Комментарии на русском — объясняют логику и точки расширения
-   =========================================================== */
+/* ========== Игра: простая зомби-аркада ========== */
+/* ----- Конфигурация ----- */
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
 
-/* =========================
-   Утилиты
-   ========================= */
-const rand = (a,b)=>Math.random()*(b-a)+a;
-const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
-const now = ()=>performance.now();
-
-/* =========================
-   Настройки по умолчанию и localStorage wrapper
-   ========================= */
-const STORAGE_KEY = 'arcade_runner_v1';
-const DEFAULTS = {
-  bestScore:0,
-  settings:{
-    sound:'on',
-    sensitivity:1,
-    theme:'default',
-    showTouch:false
-  },
-  achievements:{}, // ключи true/false
+const UI = {
+  hpText: document.getElementById('hpText'),
+  coins: document.getElementById('coins'),
+  wave: document.getElementById('wave'),
+  shopBtn: document.getElementById('shopBtn'),
+  shop: document.getElementById('shop'),
+  weaponsList: document.getElementById('weaponsList'),
+  closeShop: document.getElementById('closeShop'),
+  gameOver: document.getElementById('gameOver'),
+  finalCoins: document.getElementById('finalCoins'),
+  restart: document.getElementById('restart')
 };
 
-function loadStore(){
-  try{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if(!raw) return JSON.parse(JSON.stringify(DEFAULTS));
-    const parsed = JSON.parse(raw);
-    // Простое слияние настроек
-    return {...DEFAULTS, ...parsed, settings:{...DEFAULTS.settings, ...(parsed.settings||{})}};
-  }catch(e){
-    console.error('Ошибка загрузки localStorage',e);
-    return JSON.parse(JSON.stringify(DEFAULTS));
-  }
-}
-function saveStore(store){
-  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); }
-  catch(e){ console.warn('Не удалось сохранить прогресс',e); }
-}
+const WIDTH = canvas.width;
+const HEIGHT = canvas.height;
 
-let STORE = loadStore();
+/* ----- Игрок ----- */
+const player = {
+  x: WIDTH/2, y: HEIGHT/2, r: 12,
+  speed: 2.6,
+  hp: 100,
+  maxHp: 100,
+  weapon: null
+};
 
-/* =========================
-   Audio: простой WebAudio синтезатор для эффектов
-   - Используем короткие тона и шум, без внешних ресурсов
-   ========================= */
-class SFX {
-  constructor(){
-    this.ctx = null;
-    this.masterGain = null;
-    this.enabled = STORE.settings.sound === 'on';
-    this._init();
+/* ----- Оружие (магазин) ----- */
+const weapons = [
+  {
+    id:'pistol', name:'Пистолет', price:0,
+    bullets:1, spread:0, dmg:18, speed:9, fireRate:300, desc:'Стандартный. Бесплатно.'
+  },
+  {
+    id:'shotgun', name:'Дробовик', price:120,
+    bullets:6, spread:0.5, dmg:8, speed:7, fireRate:700, desc:'Короткий выстрел, много дроби.'
+  },
+  {
+    id:'rifle', name:'Винтовка', price:350,
+    bullets:1, spread:0, dmg:65, speed:12, fireRate:500, desc:'Сильный точный выстрел.'
+  },
+  {
+    id:'uzi', name:'Пулемет UZI', price:500,
+    bullets:1, spread:0.1, dmg:9, speed:11, fireRate:100, desc:'Быстрая очередь.'
+  },
+  {
+    id:'flame', name:'Огнемёт', price:700,
+    bullets:3, spread:0.6, dmg:6, speed:6, fireRate:120, desc:'Ближе к врагам — лучше.'
   }
-  _init(){
-    try{
-      const C = window.AudioContext || window.webkitAudioContext;
-      this.ctx = new C();
-      this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.value = 0.12;
-      this.masterGain.connect(this.ctx.destination);
-    }catch(e){
-      console.warn('WebAudio не поддерживается',e);
-      this.ctx = null;
-    }
-  }
-  setEnabled(v){
-    this.enabled = v;
-  }
-  // Короткий синтез запуска прыжка
-  jump(){
-    if(!this.ctx||!this.enabled) return;
-    const o = this.ctx.createOscillator();
-    const g = this.ctx.createGain();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(600, this.ctx.currentTime);
-    g.gain.setValueAtTime(0.0001, this.ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.12, this.ctx.currentTime + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.25);
-    o.connect(g); g.connect(this.masterGain);
-    o.start(); o.stop(this.ctx.currentTime + 0.3);
-  }
-  // Патрон/удар
-  shoot(){
-    if(!this.ctx||!this.enabled) return;
-    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
-    o.type='square'; o.frequency.value = 1100;
-    g.gain.value = 0.08;
-    o.connect(g); g.connect(this.masterGain);
-    o.start(); o.frequency.exponentialRampToValueAtTime(400, this.ctx.currentTime + 0.1);
-    o.stop(this.ctx.currentTime+0.12);
-  }
-  // Взрыв короткий шум
-  boom(){
-    if(!this.ctx||!this.enabled) return;
-    const buffer = this.ctx.createBuffer(1, this.ctx.sampleRate*0.25, this.ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for(let i=0;i<data.length;i++){
-      data[i] = (Math.random()*2-1) * (1 - i/data.length);
-    }
-    const src = this.ctx.createBufferSource();
-    const g = this.ctx.createGain();
-    src.buffer = buffer;
-    g.gain.value = 0.18;
-    src.connect(g); g.connect(this.masterGain);
-    src.start();
-  }
-  // collect sound
-  collect(){
-    if(!this.ctx||!this.enabled) return;
-    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
-    o.type='triangle'; o.frequency.value = 900;
-    g.gain.value = 0.06;
-    o.connect(g); g.connect(this.masterGain);
-    o.start(); o.frequency.exponentialRampToValueAtTime(1400, this.ctx.currentTime + 0.12);
-    o.stop(this.ctx.currentTime+0.14);
-  }
-}
+];
 
-/* =========================
-   Canvas и рендер-менеджер
-   ========================= */
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d', { alpha:true });
-let DPR = Math.max(1, window.devicePixelRatio || 1);
+let owned = new Set(['pistol']);
+player.weapon = weapons[0]; // default
 
-// Автоматическое ресайзирование canvas
-function resizeCanvas(){
+/* ----- Враги (зомби) ----- */
+let enemies = [];
+let bullets = [];
+let coins = [];
+let wave = 1;
+let spawnTimer = 0;
+let spawnInterval = 120; // frames
+let killedThisWave = 0;
+let totalWaveEnemies = 6;
+let bossActive = false;
+
+/* ----- Игровые переменные ----- */
+let keys = {};
+let mouse = {x:0,y:0,down:false};
+let lastShot = 0;
+let coinCount = 0;
+let gameRunning = true;
+
+/* ----- Управление ----- */
+window.addEventListener('keydown',e=>keys[e.key.toLowerCase()]=true);
+window.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+canvas.addEventListener('mousemove',e=>{
   const rect = canvas.getBoundingClientRect();
-  DPR = Math.max(1, window.devicePixelRatio || 1);
-  canvas.width = Math.floor(rect.width * DPR);
-  canvas.height = Math.floor(rect.height * DPR);
-  ctx.setTransform(DPR,0,0,DPR,0,0);
-}
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
+  mouse.x = (e.clientX - rect.left) * (canvas.width/rect.width);
+  mouse.y = (e.clientY - rect.top) * (canvas.height/rect.height);
+});
+canvas.addEventListener('mousedown',e=>{
+  mouse.down = true;
+});
+canvas.addEventListener('mouseup',e=>{
+  mouse.down = false;
+});
+UI.shopBtn.addEventListener('click',()=>toggleShop(true));
+UI.closeShop.addEventListener('click',()=>toggleShop(false));
+UI.restart.addEventListener('click',resetGame);
 
-/* =========================
-   Game Entity base class
-   ========================= */
-class Entity{
-  constructor(x,y,w,h){
-    this.x = x; this.y = y; this.w = w; this.h = h;
-    this.vx = 0; this.vy = 0;
-    this.dead = false;
-  }
-  update(dt, game){}
-  draw(ctx, game){}
-  intersects(other){
-    return this.x < other.x + other.w &&
-           this.x + this.w > other.x &&
-           this.y < other.y + other.h &&
-           this.y + this.h > other.y;
-  }
-}
-
-/* =========================
-   Player
-   ========================= */
-class Player extends Entity{
-  constructor(x,y){
-    super(x,y,44,44);
-    this.speed = 260; // px/sec
-    this.jumpSpeed = -520;
-    this.onGround = false;
-    this.health = 100;
-    this.lives = 3;
-    this.shootCooldown = 0;
-    this.color = '#4ee1a6';
-    this.invulnerable = 0;
-    this.scoreMultiplier = 1;
-  }
-  reset(){
-    this.health = 100; this.lives = 3; this.x = 120; this.y = this.spawnY; this.invulnerable = 0;
-  }
-  update(dt, game){
-    // dt в секундах
-    // Горизонтальное движение
-    const input = game.input;
-    const s = this.speed * (1 + (game.difficulty==='hard'?0.12:0));
-    if(input.left) this.vx = -s * input.sensitivity;
-    else if(input.right) this.vx = s * input.sensitivity;
-    else this.vx = 0;
-
-    // Применяем гравитацию
-    this.vy += game.gravity * dt;
-    // Прыжок
-    if(input.jump && this.onGround){
-      this.vy = this.jumpSpeed;
-      this.onGround = false;
-      game.sfx.jump();
-    }
-
-    // Стрельба
-    this.shootCooldown -= dt;
-    if(input.shoot && this.shootCooldown <= 0){
-      game.spawnBullet(this.x + this.w, this.y + this.h/2, 700);
-      this.shootCooldown = 0.2 / (this.scoreMultiplier);
-      game.sfx.shoot();
-    }
-
-    // Простая физика
-    this.x += this.vx * dt;
-    this.y += this.vy * dt;
-
-    // Пол — ограничение по y
-    const groundY = game.groundY - this.h;
-    if(this.y >= groundY){
-      this.y = groundY;
-      this.vy = 0;
-      this.onGround = true;
-    }
-
-    // Ограничение по игровому окну
-    this.x = clamp(this.x, 8, game.width - this.w - 8);
-
-    // Инвulnerability timer
-    if(this.invulnerable > 0) this.invulnerable -= dt;
-  }
-  draw(ctx, game){
-    // Рисуем осн овое тело (прямоугольник с приемлемым контрастом)
-    ctx.save();
-    // пульсация при уроне
-    const pulse = this.invulnerable > 0 ? Math.sin(now()/50)*0.08+1 : 1;
-    ctx.translate(this.x + this.w/2, this.y + this.h/2);
-    ctx.scale(pulse, pulse);
-    ctx.fillStyle = this.color;
-    roundedRect(ctx, -this.w/2, -this.h/2, this.w, this.h, 8);
-    ctx.fill();
-    // глаз-скос чтобы было "персонажно"
-    ctx.fillStyle = '#072023';
-    ctx.fillRect(6, -8, 18, 6);
-    ctx.restore();
-  }
-  takeDamage(amount, game){
-    if(this.invulnerable > 0) return;
-    this.health -= amount;
-    this.invulnerable = 0.9; // секунды неуязвимости
-    game.spawnParticles(this.x + this.w/2, this.y + this.h/2, 12, '#ff7b7b');
-    game.sfx.boom();
-    if(this.health <= 0){
-      this.lives -= 1;
-      if(this.lives > 0){
-        this.health = 100;
-        this.invulnerable = 1.4;
-        // репозиционируем
-        this.x = 120;
-        this.vx = 0; this.vy = 0;
+/* ----- Магазин UI ----- */
+function renderShop(){
+  UI.weaponsList.innerHTML = '';
+  weapons.forEach(w=>{
+    const div = document.createElement('div');
+    div.className = 'weapon';
+    const ownedFlag = owned.has(w.id);
+    div.innerHTML = `
+      <div>
+        <div style="font-weight:700">${w.name} ${ownedFlag?'<small style="color:#6fdc97">• owned</small>':''}</div>
+        <div style="font-size:12px;color:#bbb">${w.desc}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="margin-bottom:6px">${w.price>0? w.price+' 💰' : '0 💰'}</div>
+        ${ownedFlag? `<button class="btnEquip" data-id="${w.id}">Экипировать</button>` :
+                    `<button class="btnBuy" data-id="${w.id}">Купить</button>`}
+      </div>`;
+    UI.weaponsList.appendChild(div);
+  });
+  // attach events
+  Array.from(UI.weaponsList.querySelectorAll('.btnBuy')).forEach(b=>{
+    b.addEventListener('click',ev=>{
+      const id = ev.currentTarget.dataset.id;
+      const w = weapons.find(x=>x.id===id);
+      if(coinCount >= w.price){
+        coinCount -= w.price;
+        owned.add(w.id);
+        renderShop();
+        updateUI();
       } else {
-        game.onPlayerDeath();
+        alert('Недостаточно монет!');
       }
-    }
-  }
+    });
+  });
+  Array.from(UI.weaponsList.querySelectorAll('.btnEquip')).forEach(b=>{
+    b.addEventListener('click',ev=>{
+      const id = ev.currentTarget.dataset.id;
+      const w = weapons.find(x=>x.id===id);
+      player.weapon = w;
+      toggleShop(false);
+    });
+  });
 }
 
-/* =========================
-   Bullet (пуля игрока)
-   ========================= */
-class Bullet extends Entity{
-  constructor(x,y,speed){
-    super(x,y,8,6);
-    this.vx = speed;
-    this.color = '#fff9';
-  }
-  update(dt,game){
-    this.x += this.vx * dt;
-    // если за пределами, помечаем мёртвым
-    if(this.x > game.width + 50) this.dead = true;
-  }
-  draw(ctx){
-    ctx.save();
-    ctx.fillStyle = '#ffd';
-    ctx.fillRect(this.x, this.y-3, this.w, this.h);
-    ctx.restore();
-  }
+function toggleShop(show){
+  UI.shop.style.display = show? 'block' : 'none';
+  UI.shop.setAttribute('aria-hidden', !show);
+  if(show) renderShop();
 }
 
-/* =========================
-   Enemy
-   - различные типы: runner (движется влево), turret (шарит по арене)
-   ========================= */
-class Enemy extends Entity{
-  constructor(x,y,type='runner'){
-    super(x,y,40,40);
-    this.type = type;
-    this.speed = rand(120,220);
-    this.health = type==='tank'?3:1;
-    this.color = type==='tank' ? '#ff9f5a' : '#ff5c5c';
-    this.shootTimer = rand(1.2,2.8);
-  }
-  update(dt,game){
-    if(this.type === 'runner'){
-      this.x -= (this.speed + game.level*20) * dt * (game.difficulty==='hard'?1.2:1);
-    } else if(this.type === 'turret'){
-      // неподвижный, стреляет в сторону игрока
-      this.shootTimer -= dt;
-      if(this.shootTimer <= 0){
-        this.shootTimer = rand(1.2,2.5);
-        const dir = Math.sign((game.player.y+game.player.h/2) - (this.y + this.h/2));
-        game.spawnEnemyBullet(this.x, this.y + this.h/2, -280, dir*30);
-      }
-    } else if(this.type === 'tank'){
-      this.x -= (this.speed*0.6) * dt;
-    }
-
-    // если вышли за левую границу — удалить и штраф очков
-    if(this.x + this.w < -50){ this.dead = true; game.score = Math.max(0, game.score - 5); }
-  }
-  draw(ctx){
-    ctx.save();
-    roundedRect(ctx, this.x, this.y, this.w, this.h, 6);
-    ctx.fillStyle = this.color;
-    ctx.fill();
-    // глаза
-    ctx.fillStyle = '#200';
-    ctx.fillRect(this.x + 8, this.y + 10, 6, 6);
-    ctx.fillRect(this.x + 26, this.y + 10, 6, 6);
-    ctx.restore();
-  }
-  damage(amount, game){
-    this.health -= amount;
-    game.spawnParticles(this.x + this.w/2, this.y + this.h/2, 8, '#ffda7a');
-    if(this.health <= 0){
-      this.dead = true;
-      game.onEnemyDestroyed(this);
-    } else {
-      // краткая индикация
-    }
-  }
+/* ----- Спаун зомби ----- */
+function spawnEnemy(isBoss=false){
+  // spawn at border
+  let edge = Math.floor(Math.random()*4);
+  let x,y;
+  if(edge===0){x = -20; y = Math.random()*HEIGHT;}
+  if(edge===1){x = WIDTH+20; y = Math.random()*HEIGHT;}
+  if(edge===2){x = Math.random()*WIDTH; y = -20;}
+  if(edge===3){x = Math.random()*WIDTH; y = HEIGHT+20;}
+  const baseHp = isBoss ? 350 + wave*60 : 20 + Math.floor(wave*4 + Math.random()*wave*3);
+  const speed = isBoss ? 0.8 + wave*0.03 : 0.7 + Math.random()*0.6 + Math.min(1.8, wave*0.06);
+  const r = isBoss ? 28 : 12 + Math.random()*6;
+  enemies.push({
+    x, y, r, hp:baseHp, maxHp:baseHp, speed, isBoss,
+    color: isBoss ? '#8b0000' : '#9bbf68',
+    reward: isBoss ? 100 + wave*40 : 8 + Math.floor(Math.random()*10)
+  });
 }
 
-/* =========================
-   Enemy bullet
-   ========================= */
-class EnemyBullet extends Entity{
-  constructor(x,y,vx,vy){
-    super(x,y,8,6);
-    this.vx = vx; this.vy = vy;
-  }
-  update(dt,game){
-    this.x += this.vx * dt;
-    this.y += this.vy * dt;
-    if(this.x < -50 || this.x > game.width + 50 || this.y < -50 || this.y > game.height + 50) this.dead = true;
-  }
-  draw(ctx){
-    ctx.fillStyle = '#f88';
-    ctx.fillRect(this.x, this.y-3, this.w, this.h);
+/* ----- Игровой цикл ----- */
+let lastTime = performance.now();
+function loop(now){
+  const dt = now - lastTime;
+  lastTime = now;
+  if(gameRunning){
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
   }
 }
+requestAnimationFrame(loop);
 
-/* =========================
-   PowerUp / Bonus
-   ========================= */
-class PowerUp extends Entity{
-  constructor(x,y,kind='health'){
-    super(x,y,26,26);
-    this.kind = kind; // 'health','mult','life','shield'
-    this.vx = -120;
-    this.color = kind==='health'?'#4ee1a6':'#ffd36b';
-  }
-  update(dt,game){
-    this.x += this.vx * dt;
-    if(this.x < -50) this.dead = true;
-    // небольшая вертикальная синус-волна для визуала
-    this.y += Math.sin(now()/300 + this.x/100) * 0.2;
-  }
-  draw(ctx){
-    ctx.save();
-    roundedRect(ctx, this.x, this.y, this.w, this.h, 6);
-    ctx.fillStyle = this.color;
-    ctx.fill();
-    ctx.fillStyle = '#04201a';
-    if(this.kind === 'health'){
-      ctx.fillRect(this.x+10,this.y+6,6,14);
-      ctx.fillRect(this.x+6,this.y+10,14,6);
-    } else if(this.kind === 'mult'){
-      ctx.fillText('x', this.x+8, this.y+18);
-    } else if(this.kind === 'life'){
-      ctx.fillStyle = '#ffddd6';
-      ctx.beginPath(); ctx.moveTo(this.x+13,this.y+6); ctx.bezierCurveTo(this.x+20,this.y-2,this.x+30,this.y+6,this.x+13,this.y+22);
-      ctx.fill();
+/* ----- Обновление ----- */
+function update(dt){
+  // player movement
+  let mvx = 0, mvy = 0;
+  if(keys['w'] || keys['arrowup']) mvy -= 1;
+  if(keys['s'] || keys['arrowdown']) mvy += 1;
+  if(keys['a'] || keys['arrowleft']) mvx -= 1;
+  if(keys['d'] || keys['arrowright']) mvx += 1;
+  const mag = Math.hypot(mvx,mvy) || 1;
+  player.x += (mvx/mag)*player.speed;
+  player.y += (mvy/mag)*player.speed;
+  player.x = Math.max(6, Math.min(WIDTH-6, player.x));
+  player.y = Math.max(6, Math.min(HEIGHT-6, player.y));
+
+  // shooting
+  if(mouse.down){
+    const nowT = performance.now();
+    if(nowT - lastShot >= player.weapon.fireRate){
+      shoot();
+      lastShot = nowT;
     }
-    ctx.restore();
-  }
-}
-
-/* =========================
-   Particles (для всплесков/взрывов)
-   ========================= */
-class Particle{
-  constructor(x,y, vx, vy, life, color){
-    this.x = x; this.y = y; this.vx=vx; this.vy=vy; this.life=life; this.maxLife=life; this.color=color;
-  }
-  update(dt){
-    this.x += this.vx * dt;
-    this.y += this.vy * dt;
-    this.vy += 420 * dt; // gravity
-    this.life -= dt;
-  }
-  draw(ctx){
-    const t = this.life/this.maxLife;
-    ctx.globalAlpha = clamp(t,0,1);
-    ctx.fillStyle = this.color;
-    ctx.fillRect(this.x-2, this.y-2, 4, 4);
-    ctx.globalAlpha = 1;
-  }
-}
-
-/* =========================
-   Game core
-   ========================= */
-class Game {
-  constructor(){
-    this.width = canvas.clientWidth;
-    this.height = canvas.clientHeight;
-    this.groundY = this.height - 120; // y координата земли
-    this.gravity = 1400;
-    this.player = new Player(120, this.groundY - 44);
-    this.player.spawnY = this.groundY - 44;
-    this.entities = []; // enemies, powerups, bullets
-    this.particles = [];
-    this.bullets = [];
-    this.enemyBullets = [];
-    this.lastSpawn = 0;
-    this.spawnInterval = 1.2;
-    this.score = 0;
-    this.level = 1;
-    this.bestScore = STORE.bestScore || 0;
-    this.running = false;
-    this.paused = false;
-    this.mode = 'infinite';
-    this.difficulty = 'easy';
-    this.sfx = new SFX();
-    this.input = {
-      left:false,right:false,jump:false,shoot:false,sensitivity:STORE.settings.sensitivity||1
-    };
-    this.achievements = STORE.achievements || {};
-    this.achDefinitions = [
-      {id:'first_blood', title:'Первая победа', desc:'Убейте первого врага'},
-      {id:'survivor', title:'Выживший', desc:'Пройдите 60 секунд без потерь жизни'},
-      {id:'collector', title:'Собиратель', desc:'Соберите 10 бонусов'},
-      {id:'speedrun', title:'Скорость!', desc:'Наберите 2000 очков за одну игру'}
-    ];
-    this.achievementTimers = {}; // для локальной логики
-    this.touchMode = STORE.settings.showTouch || false;
-
-    // метрики и оптимизации
-    this._accumulator = 0;
-    this._lastTime = null;
-    this._fpsCounter = { frames:0, last:now(), fps:0 };
-
-    // Hook UI elements
-    this.hudScore = document.getElementById('score');
-    this.hudLevel = document.getElementById('level');
-    this.hudLives = document.getElementById('lives');
-    this.hudHealthFill = document.getElementById('healthFill');
-    document.getElementById('bestScore').innerText = this.bestScore;
-    document.getElementById('themeName').innerText = STORE.settings.theme || 'Default';
-
-    // bind resize update
-    this.onResize = ()=>{ this.width = canvas.clientWidth; this.height = canvas.clientHeight; this.groundY = this.height - 120; this.player.spawnY = this.groundY - this.player.h; };
-    window.addEventListener('resize', this.onResize);
-
-    // Performance adaptation: if FPS low, reduce particle spawn etc.
-    this.performanceMode = false;
   }
 
-  start(){
-    // Сброс состояния
-    this.entities.length = 0; this.particles.length = 0; this.bullets.length = 0; this.enemyBullets.length = 0;
-    this.score = 0; this.level = 1; this.lastSpawn = 0;
-    this.player = new Player(120, this.groundY - 44);
-    this.player.spawnY = this.groundY - this.player.h;
-    this.player.lives = 3;
-    this.player.health = 100;
-    this.running = true;
-    this.paused = false;
-    this._lastTime = null;
-    this._accumulator = 0;
-    this.achievementTimers.survivor = 0;
-    this.loop(0);
-  }
-
-  pause(){
-    this.paused = true;
-    this.sfx && this.sfx.ctx && this.sfx.ctx.suspend && this.sfx.ctx.suspend();
-    document.getElementById('pauseBtn').setAttribute('aria-pressed','true');
-  }
-  resume(){
-    this.paused = false;
-    this.sfx && this.sfx.ctx && this.sfx.ctx.resume && this.sfx.ctx.resume();
-    document.getElementById('pauseBtn').setAttribute('aria-pressed','false');
-    this._lastTime = null;
-    this.loop(0);
-  }
-
-  loop(ts){
-    if(!this.running) return;
-    if(this.paused) return;
-    if(!this._lastTime) this._lastTime = ts;
-    const dtMs = ts - this._lastTime;
-    this._lastTime = ts;
-    // limit dt to prevent jumps
-    const dt = Math.min(50, dtMs) / 1000;
-    // FPS counter
-    this._fpsCounter.frames++;
-    if(ts - this._fpsCounter.last > 500){
-      this._fpsCounter.fps = Math.round(this._fpsCounter.frames / ((ts - this._fpsCounter.last)/1000));
-      this._fpsCounter.frames = 0;
-      this._fpsCounter.last = ts;
-      document.getElementById('fps').innerText = this._fpsCounter.fps;
-      // Performance mode toggle
-      this.performanceMode = this._fpsCounter.fps < 30;
-    }
-
-    this.update(dt);
-    this.render();
-
-    requestAnimationFrame((t)=>this.loop(t));
-  }
-
-  update(dt){
-    // Обновляем игрока и сущности
-    // Управление чувствительностью уже применено в player.update
-    this.player.update(dt, this);
-
-    // Спавн врагов по таймеру
-    this.lastSpawn += dt;
-    const spawnRate = clamp(this.spawnInterval - this.level*0.02 - (this.difficulty==='hard'?0.2:0), 0.45, 2.0);
-    if(this.lastSpawn >= spawnRate){
-      this.lastSpawn = 0;
-      this.spawnEnemyWave();
-    }
-
-    // Обновляем все сущности
-    for(const e of this.entities) e.update(dt, this);
-    for(const b of this.bullets) b.update(dt, this);
-    for(const eb of this.enemyBullets) eb.update(dt, this);
-
-    // Particles
-    for(const p of this.particles) p.update(dt);
-
-    // Очистка мертвых
-    this.entities = this.entities.filter(e=>!e.dead);
-    this.bullets = this.bullets.filter(b=>!b.dead);
-    this.enemyBullets = this.enemyBullets.filter(b=>!b.dead);
-    this.particles = this.particles.filter(p=>p.life>0);
-
-    // Коллизии: пули врагов -> игрок
-    for(const eb of this.enemyBullets){
-      if(this.player.intersects(eb)){
-        eb.dead = true;
-        this.player.takeDamage(18, this);
-      }
-    }
-    // Враги -> игрок
-    for(const en of this.entities.filter(e=>e instanceof Enemy)){
-      if(this.player.intersects(en)){
-        en.dead = true;
-        this.player.takeDamage(34, this);
-      }
-    }
-    // Пули -> враги
-    for(const b of this.bullets){
-      for(const en of this.entities.filter(e=>e instanceof Enemy)){
-        if(b.intersects(en)){
-          b.dead = true;
-          en.damage(1, this);
-          this.score += 25 * this.player.scoreMultiplier;
+  // bullets move & collisions
+  for(let i=bullets.length-1;i>=0;i--){
+    const b=bullets[i];
+    b.x += b.vx; b.y += b.vy;
+    b.life--;
+    // hit enemies
+    for(let j=enemies.length-1;j>=0 && b.life>0;j--){
+      const e=enemies[j];
+      const dx=e.x-b.x, dy=e.y-b.y;
+      if(Math.hypot(dx,dy) < e.r + 2){
+        e.hp -= b.dmg;
+        b.life = 0;
+        if(e.hp <= 0){
+          // kill
+          const dropCount = Math.max(1, Math.round(e.reward/6));
+          for(let k=0;k<dropCount;k++){
+            coins.push({x:e.x + (Math.random()-0.5)*20, y:e.y + (Math.random()-0.5)*20, vx:(Math.random()-0.5)*1.2, vy:(Math.random()-0.7)*2, val: Math.max(1, Math.round(e.reward/dropCount))});
+          }
+          coinCount += e.reward;
+          killedThisWave++;
+          enemies.splice(j,1);
+          // boss defeated
+          if(e.isBoss){
+            bossActive = false;
+            wave++;
+            prepareNextWave();
+          }
         }
       }
     }
-    // Player -> powerup
-    for(const p of this.entities.filter(e=>e instanceof PowerUp)){
-      if(this.player.intersects(p)){
-        p.dead = true;
-        this.onPowerCollected(p);
-      }
-    }
+    // remove bullet if offscreen or dead
+    if(b.life<=0 || b.x<-50 || b.x>WIDTH+50 || b.y<-50 || b.y>HEIGHT+50) bullets.splice(i,1);
+  }
 
-    // Увеличение очков за дистанцию / время
-    // Чем выше уровень — тем больше очков в секунду
-    this.score += dt * (10 + this.level*2) * (this.difficulty==='hard'?1.2:1);
+  // enemies move toward player
+  for(let i=enemies.length-1;i>=0;i--){
+    const e = enemies[i];
+    const dx = player.x - e.x, dy = player.y - e.y;
+    const d = Math.hypot(dx,dy) || 1;
+    e.x += (dx/d) * e.speed;
+    e.y += (dy/d) * e.speed;
 
-    // Level up по очкам в режиме уровней
-    if(this.mode === 'levels'){
-      const goal = 5000;
-      const newLevel = Math.floor(this.score / (goal/5)) + 1;
-      if(newLevel > this.level) this.level = newLevel;
-      if(this.score >= goal){
-        this.onWin();
-      }
-    } else {
-      // В бесконечном режиме уровень растёт плавно
-      const newLevel = Math.floor(this.score / 1500) + 1;
-      if(newLevel > this.level) this.level = newLevel;
-    }
-
-    // HUD
-    this.hudScore.innerText = Math.floor(this.score);
-    this.hudLevel.innerText = this.level;
-    this.hudLives.innerText = this.player.lives;
-    this.hudHealthFill.style.width = clamp(this.player.health,0,100) + '%';
-
-    // achievements tracking
-    this.achievementTimers.survivor = (this.achievementTimers.survivor||0) + dt;
-    if(this.achievementTimers.survivor >= 60 && !this.achievements.survivor){
-      this.unlockAchievement('survivor');
-    }
-    // collector, speedrun managed in events
-
-    // Update best score
-    if(this.score > this.bestScore){
-      this.bestScore = Math.floor(this.score);
-      document.getElementById('bestScore').innerText = this.bestScore;
-      STORE.bestScore = this.bestScore;
-      saveStore(STORE);
+    // touch player
+    if(d < e.r + player.r - 2){
+      // damage and knockback
+      const dmg = e.isBoss ? 18 : 8;
+      player.hp -= dmg * 0.9;
+      // small push
+      e.x -= (dx/d)*10;
+      e.y -= (dy/d)*10;
+      if(player.hp <= 0){ endGame(); return; }
     }
   }
 
-  render(){
-    // Clear canvas
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+  // coins physics & pickup
+  for(let i=coins.length-1;i>=0;i--){
+    const c = coins[i];
+    c.vy += 0.12;
+    c.x += c.vx; c.y += c.vy;
+    // pickup when near player
+    const d = Math.hypot(player.x-c.x, player.y-c.y);
+    if(d < 22){
+      coinCount += c.val;
+      coins.splice(i,1);
+      updateUI();
+      continue;
+    }
+    // remove if out of bounds
+    if(c.x < -50 || c.x > WIDTH+50 || c.y > HEIGHT+200) coins.splice(i,1);
+  }
 
-    // Background parallax
-    this.drawBackground(ctx);
-
-    // Ground
-    ctx.fillStyle = '#0f2a2a';
-    ctx.fillRect(0, this.groundY, this.width, this.height - this.groundY);
-
-    // Draw entities order: particles, powerups, enemies, player, bullets, enemyBullets
-    for(const p of this.particles) p.draw(ctx);
-    for(const e of this.entities) e.draw(ctx, this);
-    for(const b of this.bullets) b.draw(ctx, this);
-    for(const eb of this.enemyBullets) eb.draw(ctx, this);
-    this.player.draw(ctx, this);
-
-    // HUD overlay: draw score big when needed — minimal since HTML shows.
-    // low FPS indicator (if performance mode on)
-    if(this.performanceMode){
-      ctx.fillStyle = 'rgba(255,120,120,0.06)';
-      ctx.fillRect(0,0,this.width,this.height);
+  // spawn enemies
+  if(!bossActive){
+    spawnTimer++;
+    if(spawnTimer >= spawnInterval){
+      spawnTimer = 0;
+      if(enemies.length < totalWaveEnemies){
+        // boss appears every 5 waves
+        if(killedThisWave >= totalWaveEnemies && wave % 5 === 0){
+          bossActive = true;
+          spawnEnemy(true);
+        } else {
+          spawnEnemy(false);
+        }
+      }
+    }
+    // check wave cleared
+    if(killedThisWave >= totalWaveEnemies && enemies.length === 0 && !bossActive){
+      wave++;
+      prepareNextWave();
     }
   }
 
-  drawBackground(ctx){
-    // Простая полоса горизонта с параллакс-объектами
-    // Небо градиент
-    const g = ctx.createLinearGradient(0,0,0,this.groundY);
-    g.addColorStop(0, '#071122');
-    g.addColorStop(1, '#081822');
-    ctx.fillStyle = g;
-    ctx.fillRect(0,0,this.width, this.groundY);
+  updateUI();
+}
 
-    // Солнце / свет
+function prepareNextWave(){
+  killedThisWave = 0;
+  totalWaveEnemies = 5 + Math.floor(wave*1.6);
+  spawnInterval = Math.max(30, 120 - wave*6);
+  // small reward for wave start
+  coinCount += 20 + Math.floor(wave*5);
+}
+
+/* ----- Отрисовка ----- */
+function draw(){
+  ctx.clearRect(0,0,WIDTH,HEIGHT);
+
+  // background grid
+  ctx.fillStyle = '#070707';
+  ctx.fillRect(0,0,WIDTH,HEIGHT);
+
+  // coins
+  for(const c of coins){
     ctx.beginPath();
-    ctx.fillStyle = 'rgba(255,200,120,0.03)';
-    ctx.arc(this.width-160,80,120,0,Math.PI*2);
+    ctx.fillStyle = '#ffd54f';
+    ctx.arc(c.x,c.y,6,0,Math.PI*2);
     ctx.fill();
-
-    // Простые силуэты зданий/горы
-    ctx.fillStyle = 'rgba(255,255,255,0.02)';
-    for(let i=0;i<6;i++){
-      const bx = (this._bgOffset(i) + i*300) % (this.width+200) - 100;
-      ctx.fillRect(bx, this.groundY - (60 + i*12), 220, 60 + i*12);
-    }
-  }
-  _bgOffset(i){
-    return Math.sin(now()/1000 + i)*30;
+    ctx.fillStyle = '#6b3c00';
+    ctx.font = '10px sans-serif';
+    ctx.fillText(c.val, c.x-6, c.y+3);
   }
 
-  // Спавн волны врагов — немного случайности и типов
-  spawnEnemyWave(){
-    const yBase = this.groundY - 44;
-    // шанс на type
-    const r = Math.random();
-    if(r < 0.6){
-      // одиночный бегун
-      this.entities.push(new Enemy(this.width + 80, yBase, 'runner'));
-    } else if(r < 0.85){
-      // турель (на невысокой платформе)
-      const en = new Enemy(this.width + 80, yBase-40, 'turret');
-      en.w = 36; en.h = 36;
-      this.entities.push(en);
-    } else {
-      // танк, медленнее, более прочный
-      const en = new Enemy(this.width + 80, yBase, 'tank');
-      en.w = 60; en.h = 46; en.health = 3;
-      this.entities.push(en);
-    }
-
-    // случайно додаём бонус
-    if(Math.random() < 0.18){
-      const kinds = ['health','mult','life'];
-      const pick = kinds[Math.floor(Math.random()*kinds.length)];
-      const pu = new PowerUp(this.width + 140, yBase - rand(0,80), pick);
-      this.entities.push(pu);
+  // enemies
+  for(const e of enemies){
+    // body
+    ctx.beginPath();
+    ctx.fillStyle = e.color;
+    ctx.arc(e.x,e.y,e.r,0,Math.PI*2);
+    ctx.fill();
+    // eyes
+    ctx.fillStyle = '#111';
+    ctx.fillRect(e.x - e.r/2+2, e.y - e.r/4, e.r/3, e.r/4);
+    ctx.fillRect(e.x + e.r/6, e.y - e.r/4, e.r/3, e.r/4);
+    // hp bar
+    const w = e.r*2;
+    const hx = e.x - e.r, hy = e.y - e.r - 8;
+    ctx.fillStyle = '#333';
+    ctx.fillRect(hx,hy,w,5);
+    ctx.fillStyle = '#d32f2f';
+    ctx.fillRect(hx,hy,w*(e.hp/e.maxHp),5);
+    if(e.isBoss){
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(hx,hy,w,5);
     }
   }
 
-  spawnBullet(x,y,speed){
-    const b = new Bullet(x,y, speed);
-    this.bullets.push(b);
+  // bullets
+  for(const b of bullets){
+    ctx.beginPath();
+    ctx.fillStyle = b.color || '#fff';
+    ctx.arc(b.x,b.y, b.size||3, 0, Math.PI*2);
+    ctx.fill();
   }
 
-  spawnEnemyBullet(x,y,vx,vy){
-    const eb = new EnemyBullet(x,y,vx,vy);
-    this.enemyBullets.push(eb);
-  }
-
-  spawnParticles(x,y,count,color){
-    // Уменьшаем количество частиц в режиме низкой производительности
-    const c = this.performanceMode ? Math.max(3, Math.floor(count/3)) : count;
-    for(let i=0;i<c;i++){
-      const angle = rand(0,Math.PI*2);
-      const speed = rand(60,320);
-      const vx = Math.cos(angle)*speed;
-      const vy = Math.sin(angle)*speed;
-      const life = rand(0.4,1.0);
-      this.particles.push(new Particle(x + rand(-4,4), y + rand(-4,4), vx, vy, life, color));
-    }
-  }
-
-  onEnemyDestroyed(enemy){
-    // очки, эффекты, шанс на достижение
-    this.score += 50;
-    this.spawnParticles(enemy.x + enemy.w/2, enemy.y + enemy.h/2, 22, '#ffcc7a');
-    this.sfx.boom();
-
-    // достижения
-    if(!this.achievements['first_blood']) this.unlockAchievement('first_blood');
-    // ускорим игрока постепенно
-    this.player.scoreMultiplier = Math.min(2, this.player.scoreMultiplier + 0.03);
-  }
-
-  onPowerCollected(power){
-    if(power.kind === 'health'){
-      this.player.health = clamp(this.player.health + 30, 0, 100);
-    } else if(power.kind === 'mult'){
-      this.player.scoreMultiplier = Math.min(3, this.player.scoreMultiplier + 0.4);
-    } else if(power.kind === 'life'){
-      this.player.lives += 1;
-    }
-    this.spawnParticles(power.x + power.w/2, power.y + power.h/2, 14, '#8ef2c7');
-    this.sfx.collect();
-    // achievements: collector
-    STORE._collected = (STORE._collected||0) + 1;
-    if(STORE._collected >= 10 && !this.achievements['collector']) this.unlockAchievement('collector');
-    saveStore(STORE);
-  }
-
-  onPlayerDeath(){
-    // Останавливаем игру, показываем game over
-    this.running = false;
-    // Показываем overlay
-    showOverlay('Game Over', `Ваш счёт: ${Math.floor(this.score)}. Лучший: ${this.bestScore}`);
-    // achievements check: speedrun
-    if(this.score >= 2000 && !this.achievements['speedrun']) this.unlockAchievement('speedrun');
-  }
-
-  onWin(){
-    this.running = false;
-    showOverlay('Победа!', `Вы достигли цели для режима уровней! Очки: ${Math.floor(this.score)}`);
-  }
-
-  unlockAchievement(id){
-    const def = this.achDefinitions.find(a=>a.id===id);
-    if(!def) return;
-    this.achievements[id] = true;
-    STORE.achievements = {...STORE.achievements, ...this.achievements};
-    saveStore(STORE);
-    // toast
-    showToast(`Достижение: ${def.title}`);
-  }
-}
-
-/* =========================
-   Вспомогательные функции отрисовки
-   ========================= */
-function roundedRect(ctx,x,y,w,h,r){
+  // player
+  ctx.save();
+  ctx.translate(player.x,player.y);
+  // direction
+  const ang = Math.atan2(mouse.y - player.y, mouse.x - player.x);
+  ctx.rotate(ang);
+  // body
   ctx.beginPath();
-  ctx.moveTo(x+r,y);
-  ctx.arcTo(x+w,y,x+w,y+h,r);
-  ctx.arcTo(x+w,y+h,x,y+h,r);
-  ctx.arcTo(x,y+h,x,y,r);
-  ctx.arcTo(x,y,x+w,y,r);
-  ctx.closePath();
+  ctx.fillStyle = '#66c2ff';
+  ctx.arc(0,0,player.r,0,Math.PI*2);
+  ctx.fill();
+  // gun
+  ctx.fillStyle = '#333';
+  ctx.fillRect(10, -6, 22, 12);
+  ctx.restore();
+
+  // UI bars
+  // health box
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(10, HEIGHT-36, 260, 28);
+  ctx.strokeStyle = '#222';
+  ctx.strokeRect(10, HEIGHT-36, 260, 28);
+  ctx.fillStyle = '#ff6f6f';
+  const hpW = Math.max(0, (player.hp/player.maxHp))*230;
+  ctx.fillRect(20, HEIGHT-30, hpW, 16);
+  ctx.fillStyle = '#fff';
+  ctx.font = '12px sans-serif';
+  ctx.fillText('HP', 20, HEIGHT-40+12);
+  ctx.fillStyle = '#fff';
+  ctx.fillText('Оружие: ' + player.weapon.name, 300, HEIGHT-20);
 }
 
-/* =========================
-   UI и управление
-   ========================= */
-const game = new Game();
-
-// Элементы UI
-const menu = document.getElementById('menu');
-const menuBtn = document.getElementById('menuBtn');
-const startBtn = document.getElementById('startBtn');
-const continueBtn = document.getElementById('continueBtn');
-const pauseBtn = document.getElementById('pauseBtn');
-const settingsBtn = document.getElementById('settingsBtn');
-const modesBtn = document.getElementById('modesBtn');
-const modesView = document.getElementById('modesView');
-const settingsView = document.getElementById('settingsView');
-const achievementsView = document.getElementById('achievementsView');
-const modesBack = document.getElementById('modesBack');
-const modesApply = document.getElementById('modesApply');
-const settingsBack = document.getElementById('settingsBack');
-const settingsToggle = document.getElementById('soundToggle');
-const sensitivityRange = document.getElementById('sensitivityRange');
-const difficultySelect = document.getElementById('difficultySelect');
-const gameModeSelect = document.getElementById('gameMode');
-const themeSelect = document.getElementById('themeSelect');
-const resetBtn = document.getElementById('resetBtn');
-const overlayScreen = document.getElementById('overlayScreen');
-const overlayTitle = document.getElementById('overlayTitle');
-const overlayBody = document.getElementById('overlayBody');
-const retryBtn = document.getElementById('retryBtn');
-const overlayMenuBtn = document.getElementById('overlayMenuBtn');
-const toastEl = document.getElementById('toast');
-const achList = document.getElementById('achList');
-const achBack = document.getElementById('achBack');
-
-// Touch controls
-const touchControls = document.getElementById('touchControls');
-const btnLeft = document.getElementById('btnLeft');
-const btnRight = document.getElementById('btnRight');
-const btnJump = document.getElementById('btnJump');
-const btnShoot = document.getElementById('btnShoot');
-
-// Инициализация UI состояния из STORE
-(function initUIFromStore(){
-  document.getElementById('bestScore').innerText = STORE.bestScore || 0;
-  settingsToggle.value = STORE.settings.sound || 'on';
-  sensitivityRange.value = STORE.settings.sensitivity || 1;
-  themeSelect.value = STORE.settings.theme || 'default';
-  document.getElementById('themeName').innerText = STORE.settings.theme || 'Default';
-  game.input.sensitivity = STORE.settings.sensitivity || 1;
-  if(STORE.settings.showTouch) { touchControls.style.display = 'flex'; touchControls.setAttribute('aria-hidden','false'); }
-})();
-
-function showMenu(view='main'){
-  // view: main,modes,settings,achievements
-  menu.style.display = 'block';
-  menu.setAttribute('aria-hidden','false');
-  document.getElementById('menuMain').style.display = view==='main' ? 'flex' : 'none';
-  modesView.style.display = view==='modes' ? 'block' : 'none';
-  settingsView.style.display = view==='settings' ? 'block' : 'none';
-  achievementsView.style.display = view==='achievements' ? 'block' : 'none';
-  // fill achievements list when necessary
-  if(view === 'achievements'){
-    achList.innerHTML = '';
-    for(const def of game.achDefinitions){
-      const el = document.createElement('div');
-      el.style.display='flex'; el.style.justifyContent='space-between'; el.style.alignItems='center';
-      el.innerHTML = `<div><strong>${def.title}</strong><div style="font-size:12px;color:var(--muted)">${def.desc}</div></div>
-                      <div style="font-weight:700">${game.achievements[def.id] ? '✓' : '—'}</div>`;
-      achList.appendChild(el);
-    }
+/* ----- Стрельба ----- */
+function shoot(){
+  const w = player.weapon;
+  const baseAngle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
+  for(let i=0;i<w.bullets;i++){
+    // random spread
+    const spread = (Math.random()-0.5) * w.spread;
+    const ang = baseAngle + spread;
+    const speed = w.speed + (Math.random()*0.6-0.3);
+    bullets.push({
+      x: player.x + Math.cos(ang)*18,
+      y: player.y + Math.sin(ang)*18,
+      vx: Math.cos(ang)*speed,
+      vy: Math.sin(ang)*speed,
+      dmg: w.dmg + (Math.random()*0.15-0.07)*w.dmg,
+      life: 60,
+      size: w.id==='flame'?4:3,
+      color: w.id==='flame' ? '#ff8a33' : '#fff'
+    });
   }
 }
 
-function hideMenu(){
-  menu.style.display = 'none';
-  menu.setAttribute('aria-hidden','true');
+/* ----- UI обновление ----- */
+function updateUI(){
+  UI.hpText.textContent = Math.max(0, Math.round(player.hp));
+  UI.coins.textContent = coinCount;
+  UI.wave.textContent = wave;
 }
 
-// Overlay screen (Game Over / Win)
-function showOverlay(title, body){
-  overlayTitle.innerText = title;
-  overlayBody.innerText = body;
-  overlayScreen.style.display = 'block';
-  overlayScreen.setAttribute('aria-hidden','false');
-}
-function hideOverlay(){
-  overlayScreen.style.display = 'none';
-  overlayScreen.setAttribute('aria-hidden','true');
+/* ----- Конец игры ----- */
+function endGame(){
+  gameRunning = false;
+  UI.finalCoins.textContent = coinCount;
+  UI.gameOver.style.display = 'block';
+  UI.gameOver.style.zIndex = 999;
+  UI.goTitle.textContent = 'Ты погиб...';
 }
 
-// Toast messages
-let toastTimer = null;
-function showToast(text, time=2200){
-  toastEl.innerText = text;
-  toastEl.style.display = 'block';
-  toastEl.style.opacity = 1;
-  if(toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(()=>{ toastEl.style.transition = 'opacity 400ms'; toastEl.style.opacity=0; setTimeout(()=>toastEl.style.display='none',420); }, time);
+/* ----- Сброс ----- */
+function resetGame(){
+  // reset variables
+  enemies = [];
+  bullets = [];
+  coins = [];
+  coinCount = 0;
+  wave = 1;
+  spawnTimer = 0;
+  spawnInterval = 120;
+  killedThisWave = 0;
+  totalWaveEnemies = 6;
+  bossActive = false;
+  player.x = WIDTH/2; player.y = HEIGHT/2; player.hp = player.maxHp;
+  owned = new Set(['pistol']);
+  player.weapon = weapons[0];
+  UI.gameOver.style.display = 'none';
+  gameRunning = true;
+  lastShot = 0;
+  requestAnimationFrame(loop);
 }
 
-/* =========================
-   События UI
-   ========================= */
-menuBtn.addEventListener('click', ()=>{ showMenu('main'); game.pause(); });
-startBtn.addEventListener('click', ()=>{ hideMenu(); startGameFromMenu(); });
-continueBtn.addEventListener('click', ()=>{ hideMenu(); game.resume(); });
-pauseBtn.addEventListener('click', ()=>{
-  if(game.paused){ game.resume(); } else { game.pause(); showMenu('main'); }
-});
-modesBtn.addEventListener('click', ()=>{ showMenu('modes'); });
-modesBack.addEventListener('click', ()=>{ showMenu('main'); });
-modesApply.addEventListener('click', ()=>{
-  game.mode = gameModeSelect.value;
-  game.difficulty = difficultySelect.value;
-  hideMenu();
-  startGameFromMenu();
-});
-settingsBtn.addEventListener('click', ()=>{ showMenu('settings'); });
-settingsBack.addEventListener('click', ()=>{ showMenu('main'); });
-achBack.addEventListener('click', ()=>{ showMenu('main'); });
-document.getElementById('modesView').style.display='none';
+/* ----- Инициализация ----- */
+updateUI();
+renderShop();
+prepareNextWave();
 
-// Settings apply
-settingsToggle.addEventListener('change', ()=>{
-  const val = settingsToggle.value;
-  STORE.settings.sound = val;
-  game.sfx.setEnabled(val==='on');
-  saveStore(STORE);
-});
-sensitivityRange.addEventListener('input', ()=>{
-  const v = Number(sensitivityRange.value);
-  STORE.settings.sensitivity = v;
-  game.input.sensitivity = v;
-  saveStore(STORE);
-});
-themeSelect.addEventListener('change', ()=>{
-  const theme = themeSelect.value;
-  STORE.settings.theme = theme;
-  applyTheme(theme);
-  document.getElementById('themeName').innerText = theme;
-  saveStore(STORE);
-});
-difficultySelect.addEventListener('change', ()=>{ /* при применении в режимах */ });
-
-// Reset button
-resetBtn.addEventListener('click', ()=>{
-  if(confirm('Сбросить рекорды и достижения?')){ STORE = {...DEFAULTS}; saveStore(STORE); location.reload(); }
-});
-
-// Overlay buttons
-retryBtn.addEventListener('click', ()=>{
-  hideOverlay();
-  startGameFromMenu();
-});
-overlayMenuBtn.addEventListener('click', ()=>{
-  hideOverlay();
-  showMenu('main');
-});
-
-/* =========================
-   Игровая логика: старт/пауза и события ввода
-   ========================= */
-function startGameFromMenu(){
-  // инициализировать параметры
-  game.mode = document.getElementById('gameMode').value || game.mode;
-  game.difficulty = document.getElementById('difficultySelect').value || game.difficulty;
-  game.sfx.setEnabled(STORE.settings.sound === 'on');
-  // показать/скрыть touch controls
-  if(STORE.settings.showTouch){
-    touchControls.style.display = 'flex'; touchControls.setAttribute('aria-hidden','false');
-  } else {
-    touchControls.style.display = 'none';
-    touchControls.setAttribute('aria-hidden','true');
-  }
-  game.start();
-}
-
-/* =========================
-   Клавиатурное и мышевое управление
-   ========================= */
-const KEY = {
-  ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'jump', Space: 'shoot',
-  KeyA: 'left', KeyD:'right', KeyW:'jump', KeyS:'down', KeyM:'menu', Escape:'pause'
-};
-
-window.addEventListener('keydown', (e)=>{
-  const key = KEY[e.code];
-  if(key === 'menu' || e.code === 'KeyM') {
-    showMenu('main'); game.pause(); e.preventDefault(); return;
-  }
-  if(e.code === 'Escape'){
-    if(menu.style.display === 'block') { hideMenu(); game.resume(); } else { game.pause(); showMenu('main'); }
-    e.preventDefault();
-  }
-  if(key){
-    if(key === 'left') game.input.left = true;
-    if(key === 'right') game.input.right = true;
-    if(key === 'jump') game.input.jump = true;
-    if(key === 'shoot') game.input.shoot = true;
-    e.preventDefault();
-  }
-});
-window.addEventListener('keyup', (e)=>{
-  const key = KEY[e.code];
-  if(key){
-    if(key === 'left') game.input.left = false;
-    if(key === 'right') game.input.right = false;
-    if(key === 'jump') game.input.jump = false;
-    if(key === 'shoot') game.input.shoot = false;
-    e.preventDefault();
-  }
-});
-
-// Мышь клики по canvas — стрельба / джамп
-canvas.addEventListener('mousedown',(e)=>{
-  game.input.shoot = true;
-});
-canvas.addEventListener('mouseup',(e)=>{
-  game.input.shoot = false;
-});
-canvas.addEventListener('touchstart',(e)=>{
-  game.input.shoot = true;
+/* small mobile support: tap to shoot */
+canvas.addEventListener('touchstart', e=>{
   e.preventDefault();
-},{passive:false});
-canvas.addEventListener('touchend',(e)=>{
-  game.input.shoot = false;
-  e.preventDefault();
-},{passive:false});
-
-/* Touch buttons */
-function bindTouchButton(el, actionOn, actionOff){
-  let active = false;
-  const down = (ev)=>{ active = true; game.input[actionOn] = true; ev.preventDefault(); };
-  const up = (ev)=>{ active = false; game.input[actionOn] = false; ev.preventDefault(); };
-  el.addEventListener('touchstart', down, {passive:false});
-  el.addEventListener('mousedown', down);
-  window.addEventListener('touchend', up, {passive:false});
-  window.addEventListener('mouseup', up);
-}
-bindTouchButton(btnLeft, 'left');
-bindTouchButton(btnRight, 'right');
-bindTouchButton(btnJump, 'jump');
-bindTouchButton(btnShoot, 'shoot');
-
-/* =========================
-   Theme application (цветовые схемы)
-   ========================= */
-function applyTheme(name){
-  const root = document.documentElement;
-  if(name === 'default'){
-    root.style.setProperty('--bg','#0b1220');
-    root.style.setProperty('--panel','#0f1724');
-    root.style.setProperty('--accent','#4ee1a6');
-    root.style.setProperty('--danger','#ff5c5c');
-    root.style.setProperty('--muted','#9aa6b2');
-    root.style.setProperty('--text','#e6eef3');
-  } else if(name === 'sunset'){
-    root.style.setProperty('--bg','#1f0b12');
-    root.style.setProperty('--panel','#2a1218');
-    root.style.setProperty('--accent','#ff9f80');
-    root.style.setProperty('--danger','#ff5c5c');
-    root.style.setProperty('--muted','#d4a8a8');
-    root.style.setProperty('--text','#fff0e6');
-  } else if(name === 'neon'){
-    root.style.setProperty('--bg','#05060a');
-    root.style.setProperty('--panel','#081022');
-    root.style.setProperty('--accent','#7afff0');
-    root.style.setProperty('--danger','#ff4dff');
-    root.style.setProperty('--muted','#9ae6ff');
-    root.style.setProperty('--text','#dffcff');
-  } else if(name === 'light'){
-    root.style.setProperty('--bg','#f4f6f8');
-    root.style.setProperty('--panel','#ffffff');
-    root.style.setProperty('--accent','#277a59');
-    root.style.setProperty('--danger','#c04b4b');
-    root.style.setProperty('--muted','#5a6b73');
-    root.style.setProperty('--text','#0b1a1a');
-  }
-}
-// применим выбранную тему
-applyTheme(STORE.settings.theme || 'default');
-
-/* =========================
-   Сохранение прогресса при выходе/бездействии
-   ========================= */
-window.addEventListener('beforeunload', ()=>{
-  STORE.bestScore = game.bestScore || STORE.bestScore;
-  STORE.settings = STORE.settings || {};
-  // обновляем настройки из UI
-  STORE.settings.sensitivity = game.input.sensitivity;
-  STORE.settings.sound = settingsToggle.value;
-  STORE.settings.theme = themeSelect.value;
-  saveStore(STORE);
+  const t = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = (t.clientX - rect.left) * (canvas.width/rect.width);
+  mouse.y = (t.clientY - rect.top) * (canvas.height/rect.height);
+  mouse.down = true;
 });
-
-/* =========================
-   Инструменты отладки клавиш (горячие клавиши)
-   - Небольшой набор для удобства
-   ========================= */
-window.addEventListener('keydown', (e)=>{
-  if(e.code === 'KeyP'){ if(game.paused) game.resume(); else { game.pause(); showToast('Пауза (P)'); } }
-  if(e.code === 'KeyR'){ if(!game.running) startGameFromMenu(); }
+canvas.addEventListener('touchmove', e=>{
+  const t = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = (t.clientX - rect.left) * (canvas.width/rect.width);
+  mouse.y = (t.clientY - rect.top) * (canvas.height/rect.height);
 });
-
-/* =========================
-   Инициализация меню и состояние
-   ========================= */
-showMenu('main'); // показываем главную меню при загрузке
-// отобразим достижения в меню
-document.getElementById('modesView').style.display='none';
-
-// Добавим кнопки быстрых действий
-document.getElementById('menuTitle').innerText = 'Arcade Runner';
-
-// Отображение/скрытие панели touch по маленькому экрану
-if(window.innerWidth < 700 || STORE.settings.showTouch) {
-  touchControls.style.display = 'flex';
-  STORE.settings.showTouch = true;
-  saveStore(STORE);
-} else {
-  touchControls.style.display = STORE.settings.showTouch ? 'flex' : 'none';
-}
-
-/* =========================
-   Инструкция и горячие клавиши (встроенные в HTML в конце)
-   ========================= */
-
-/* =========================
-   TODO:
-   - Добавить больше типов врагов и паттернов
-   - Добавить прогресс сохранения уровня/чекпойнтов (сейчас only best score)
-   - Добавить музыку/loop (синтез)
-   - Сетевая таблица лидеров (необходимо внешнее API)
-   ========================= */
-
-/* Конец основного кода */
+canvas.addEventListener('touchend', e=>{
+  mouse.down = false;
+});
 </script>
-
-<!-- =========================
-     Инструкция (Как играть) и горячие клавиши
-     (Текст внизу файла по требованию)
-     ========================= -->
-
-<section style="padding:12px;max-width:900px;margin:6px auto;color:var(--muted);font-size:13px">
-  <h3 style="margin:6px 0 4px 0;color:var(--text)">Как играть</h3>
-  <p>
-    Вы — бегущий персонаж. Цель — набрать как можно больше очков: убивайте врагов, собирайте бонусы и избегайте урона.
-    В режиме "Уровни" достигните 5000 очков, чтобы выиграть. Вход в меню — M. Пауза — Esc.
-  </p>
-  <h4 style="margin:6px 0 4px 0;color:var(--text)">Горячие клавиши</h4>
-  <ul style="margin:0 0 8px 18px">
-    <li><strong>Влево/Вправо</strong>: стрелки ← → или A / D — перемещение</li>
-    <li><strong>Прыжок</strong>: ↑ или W</li>
-    <li><strong>Стрелять</strong>: Пробел или клик/касание</li>
-    <li><strong>M</strong>: Открыть меню</li>
-    <li><strong>Esc</strong>: Пауза / Закрыть меню</li>
-    <li><strong>P</strong>: Быстрая пауза</li>
-  </ul>
-  <h4 style="margin:6px 0 4px 0;color:var(--text)">Сохранение и достижения</h4>
-  <p style="margin:0">
-    Рекорд, настройки и достижения сохраняются в браузере (localStorage). Есть 4 достижениях: Первая победа, Выживший (60s), Собиратель (10 бонусов), Скорость (2000 очков).
-  </p>
-</section>
 </body>
 </html>
