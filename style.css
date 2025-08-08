@@ -32,14 +32,15 @@ input, button {
   border: 1px solid #ddd;
   border-radius: 8px;
   box-sizing: border-box;
+  margin: 5px 0;
 }
 
-#room-id {
+#user-name-input, #room-id {
   width: 70%;
   margin-right: 10px;
 }
 
-#join-btn {
+#save-name-btn, #join-btn {
   width: 25%;
   background: #667eea;
   color: white;
@@ -48,8 +49,14 @@ input, button {
   transition: background 0.3s;
 }
 
-#join-btn:hover {
+#save-name-btn:hover, #join-btn:hover {
   background: #5a6fd8;
+}
+
+#chat-screen p {
+  font-size: 0.9em;
+  color: #666;
+  margin: 5px 0;
 }
 
 #chat {
@@ -116,12 +123,13 @@ input, button {
     margin: 10px;
   }
   
-  #room-id {
+  #user-name-input, #room-id {
     width: 100%;
     margin-bottom: 10px;
+    margin-right: 0;
   }
   
-  #join-btn {
+  #save-name-btn, #join-btn {
     width: 100%;
   }
   
