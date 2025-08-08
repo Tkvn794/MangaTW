@@ -1,15 +1,74 @@
+let userId;
+let userName;
 let roomId;
 let messagesRef;
-let userId;
 
-// Генерируем уникальный ID для пользователя
+// Функция для генерации уникального ID
 function generateUserId() {
-  return 'user_' + Math.random().toString(36).substr(2, 9);
+  return 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
-// Генерируем ID при загрузке страницы
-userId = generateUserId();
-console.log("Мой ID:", userId);
+// Функция для сохранения ID в localStorage
+function saveUserId(id) {
+  try {
+    localStorage.setItem('chat_userId', id);
+    console.log("User ID saved to localStorage");
+  } catch (e) {
+    console.error("Failed to save User ID to localStorage", e);
+    // В крайнем случае можно использовать куки или другие методы
+  }
+}
+
+// Функция для получения ID из localStorage
+function loadUserId() {
+  try {
+    const savedId = localStorage.getItem('chat_userId');
+    if (savedId) {
+      console.log("User ID loaded from localStorage");
+      return savedId;
+    }
+  } catch (e) {
+    console.error("Failed to load User ID from localStorage", e);
+  }
+  return null;
+}
+
+// Инициализация: проверяем, есть ли сохраненный ID и имя
+window.addEventListener('DOMContentLoaded', () => {
+  userId = loadUserId();
+  if (!userId) {
+    userId = generateUserId();
+    saveUserId(userId);
+  }
+  console.log("Мой ID:", userId);
+  document.getElementById('user-id-display').textContent = userId;
+
+  userName = localStorage.getItem('chat_userName');
+  if (userName) {
+    document.getElementById('user-name-input').value = userName;
+    showChatScreen();
+  }
+});
+
+// Сохранение имени пользователя
+document.getElementById("save-name-btn").onclick = () => {
+  userName = document.getElementById("user-name-input").value.trim();
+  if (!userName) {
+    alert("Пожалуйста, введите имя");
+    return;
+  }
+  try {
+    localStorage.setItem('chat_userName', userName);
+  } catch (e) {
+    console.error("Failed to save user name to localStorage", e);
+  }
+  showChatScreen();
+};
+
+function showChatScreen() {
+  document.getElementById("setup-screen").style.display = "none";
+  document.getElementById("chat-screen").style.display = "block";
+}
 
 document.getElementById("join-btn").onclick = () => {
   roomId = document.getElementById("room-id").value.trim();
@@ -24,12 +83,10 @@ document.getElementById("join-btn").onclick = () => {
   // Слушаем новые сообщения
   messagesRef.on("child_added", snapshot => {
     const data = snapshot.val();
-    // Определяем, наше ли это сообщение
-    const isOwn = data.userId === userId;
-    displayMessage(data.sender + ": " + data.text, isOwn);
+    displayMessage(`${data.senderName} (${data.senderId}): ${data.text}`, data.senderId === userId);
   });
   
-  displayMessage("Вы подключились к комнате: " + roomId, true);
+  displayMessage(`Вы (${userName}) подключились к комнате: ${roomId}`, true);
   document.getElementById("message-input").focus();
 };
 
@@ -46,14 +103,16 @@ document.getElementById("message-input").addEventListener("keypress", function(e
 
 function sendMessage() {
   const msg = document.getElementById("message-input").value.trim();
-  if (msg && messagesRef) {
+  if (msg && messagesRef && userName && userId) {
     messagesRef.push({
       text: msg,
-      sender: "Пользователь",
-      userId: userId, // Добавляем ID пользователя
+      senderName: userName, // Используем введенное имя
+      senderId: userId,     // Используем сохраненный ID
       timestamp: firebase.database.ServerValue.TIMESTAMP
     });
     document.getElementById("message-input").value = "";
+  } else if (!userName || !userId) {
+    alert("Ошибка: Не удалось определить имя или ID пользователя");
   }
 }
 
