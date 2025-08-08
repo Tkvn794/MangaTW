@@ -7,9 +7,9 @@
 <style>
   html,body{height:100%;margin:0;font-family:Arial,Helvetica,sans-serif;background:#111;color:#eee}
   #container{display:flex;height:100vh;}
-  #game{flex:1;display:flex;align-items:stretch;justify-content:center;background: #0b0b0b;}
+  #game{flex:1;display:flex;align-items:stretch;justify-content:center;background: #0b0b0b;position:relative;}
   canvas{background: linear-gradient(#122,#0a0a0a); display:block; margin:auto; box-shadow: 0 0 20px #000}
-  #ui{width:360px; background:#141414; padding:12px; box-sizing:border-box; border-left: 2px solid #222; overflow:auto;}
+  #ui{width:280px;min-width:260px;background:#141414;padding:12px;box-sizing:border-box;border-left: 2px solid #222;overflow:auto;}
   h2{margin:6px 0 10px 0;font-size:16px}
   .stat{display:flex;gap:8px;align-items:center;margin-bottom:6px}
   .bar{height:14px;background:#222;border-radius:7px;flex:1;overflow:hidden;position:relative}
@@ -22,12 +22,78 @@
   canvas::-webkit-focus-ring-color { outline: none; }
   #footer{font-size:12px;color:#999;margin-top:8px}
   .small{font-size:13px}
+
+  /* Мобильные элементы управления */
+  #mobileControls {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    z-index: 100;
+    user-select: none;
+  }
+  .joystick {
+    width: 120px;
+    height: 120px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 50%;
+    position: relative;
+    touch-action: none;
+  }
+  .joystick-knob {
+    width: 50px;
+    height: 50px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    position: absolute;
+    left: 35px;
+    top: 35px;
+  }
+
+  /* Кнопки стрельбы */
+  #fireButtons {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 100;
+  }
+  .fire-btn {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    color: white;
+    font-weight: bold;
+    font-size: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    text-align: center;
+    line-height: 80px;
+    touch-action: none;
+  }
+  .fire-btn:active {
+    background: rgba(255,255,255,0.3);
+  }
 </style>
 </head>
 <body>
 <div id="container">
   <div id="game">
     <canvas id="c" width="900" height="600" tabindex="0"></canvas>
+
+    <!-- Джойстик -->
+    <div id="mobileControls">
+      <div class="joystick" id="joystick">
+        <div class="joystick-knob" id="joystickKnob"></div>
+      </div>
+    </div>
+
+    <!-- Кнопки -->
+    <div id="fireButtons">
+      <div class="fire-btn" id="btnShoot">Fire</div>
+      <div class="fire-btn" id="btnMagic">Magic</div>
+    </div>
   </div>
   <div id="ui">
     <h2>Zombie Defense</h2>
@@ -73,16 +139,13 @@
 </div>
 
 <script>
-/*
-  Zombie Defense — compact single-file game
-  Features: player, HP, food, ammo, weapons, magic, shop, towers, waves, enemies
-*/
+/* --- Игра как в твоём коде, с добавлением джойстика и кнопок --- */
 (() => {
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
   canvas.focus();
 
-  // UI references
+  // UI refs
   const hpbar = document.getElementById('hpbar');
   const hptext = document.getElementById('hptext');
   const goldEl = document.getElementById('gold');
@@ -94,503 +157,119 @@
   const weaponNameEl = document.getElementById('weaponName');
 
   const W = canvas.width, H = canvas.height;
-
-  // Game state
-  let gold = 50;
-  let wave = 0;
-  let enemies = [];
-  let projectiles = [];
-  let towers = [];
-  let particles = [];
-  let placingTower = null; // when buying tower, object with cost & power
-  let keys = {};
-  let mouse = {x:0,y:0,down:false, rightDown:false};
+  let gold = 50, wave = 0;
+  let enemies = [], projectiles = [], towers = [], particles = [];
+  let placingTower = null;
+  let mouse = {x:0,y:0,down:false,rightDown:false};
   let lastTime = 0;
 
-  // Player
-  const player = {
-    x: W/2, y: H/2, r:14,
-    hpMax: 100, hp: 100,
-    speed: 200,
-    target: null,
-    ammo: 30,
-    food: 0,
-    weaponPower: 1,
-    magicCooldown: 0, // seconds
-    magicReady: true
-  };
+  const player = {x:W/2, y:H/2, r:14, hpMax:100, hp:100, speed:200, ammo:30, food:0, weaponPower:1, magicCooldown:0, magicReady:true};
 
-  // Config (tweakable)
-  const config = {
-    enemyBaseHealth: 20,
-    enemySpeed: 40,
-    spawnPerWaveBase: 6,
-    goldPerKill: 6,
-    towerFireRate: 0.8,
-    towerRange: 140,
-    timeScale: 1
-  };
+  const config = {enemyBaseHealth:20, enemySpeed:40, spawnPerWaveBase:6, goldPerKill:6, towerFireRate:0.8, towerRange:140, timeScale:1};
 
-  // Utils
-  function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y) }
-  function clamp(v,a,b){ return Math.max(a, Math.min(b,v)) }
+  function dist(a,b){ return Math.hypot(a.x-b.x,a.y-b.y) }
+  function clamp(v,a,b){ return Math.max(a,Math.min(b,v)) }
   function rand(min,max){ return Math.random()*(max-min)+min }
   function now(){ return performance.now()/1000 }
 
-  // Input handling
   canvas.addEventListener('mousemove', e=> {
     const rect = canvas.getBoundingClientRect();
     mouse.x = (e.clientX - rect.left) * (canvas.width / rect.width);
     mouse.y = (e.clientY - rect.top) * (canvas.height / rect.height);
   });
-  canvas.addEventListener('mousedown', e=>{
-    if(e.button === 0) mouse.down = true;
-    if(e.button === 2) mouse.rightDown = true;
-    // if placing tower: place at mouse
+  canvas.addEventListener('mousedown', e=> {
+    if(e.button===0) mouse.down = true;
+    if(e.button===2) mouse.rightDown = true;
     if(placingTower && e.button===0){
-      if(gold >= placingTower.cost){
-        // simple check to not place on player
-        if(Math.hypot(mouse.x - player.x, mouse.y - player.y) > 50){
-          towers.push({
-            x: mouse.x, y: mouse.y, range: (placingTower.power||1)*config.towerRange,
-            fireRate: config.towerFireRate/(placingTower.power||1),
-            lastFire: 0,
-            power: (placingTower.power||1),
-            hp: 60 + (placingTower.power||0)*40
-          });
-          gold -= placingTower.cost;
-          placingTower = null;
-        }
-      } else {
-        placingTower = null;
+      if(gold>=placingTower.cost && dist(mouse,player)>50){
+        towers.push({x:mouse.x,y:mouse.y,range:(placingTower.power||1)*config.towerRange,fireRate:config.towerFireRate/(placingTower.power||1),lastFire:0,power:(placingTower.power||1),hp:60+(placingTower.power||0)*40});
+        gold -= placingTower.cost;
+        placingTower=null;
       }
     }
   });
-  canvas.addEventListener('mouseup', e=>{
-    if(e.button === 0) mouse.down = false;
-    if(e.button === 2) { mouse.rightDown = false; castMagic(); }
+  canvas.addEventListener('mouseup', e=> {
+    if(e.button===0) mouse.down=false;
+    if(e.button===2){ mouse.rightDown=false; castMagic(); }
   });
-  // prevent context menu
   canvas.addEventListener('contextmenu', e=> e.preventDefault());
 
-  // Buttons
-  document.getElementById('buyBullets').addEventListener('click', ()=>{
-    if(gold >= 10){ gold -= 10; player.ammo += 10; updateUI(); }
-  });
-  document.getElementById('buyFood').addEventListener('click', ()=>{
-    if(gold >= 15){ gold -= 15; player.food += 1; updateUI(); }
-  });
+  document.getElementById('buyBullets').addEventListener('click', ()=>{ if(gold>=10){ gold-=10; player.ammo+=10; updateUI(); } });
+  document.getElementById('buyFood').addEventListener('click', ()=>{ if(gold>=15){ gold-=15; player.food++; updateUI(); } });
   document.querySelectorAll('[data-action="buyTower"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const cost = parseInt(btn.dataset.cost||30);
-      const power = parseInt(btn.dataset.power||1);
-      // start placing mode
-      placingTower = {cost:cost, power:power};
-    });
+    btn.addEventListener('click', ()=>{ placingTower={cost:+btn.dataset.cost||30, power:+btn.dataset.power||1}; });
   });
-  document.getElementById('upgradeWeapon').addEventListener('click', ()=>{
-    if(gold >= 50){ gold -= 50; player.weaponPower += 1; updateUI(); }
-  });
+  document.getElementById('upgradeWeapon').addEventListener('click', ()=>{ if(gold>=50){ gold-=50; player.weaponPower++; updateUI(); } });
   document.getElementById('startWave').addEventListener('click', ()=> startWave());
 
-  // Shooting
-  function shoot(tx,ty,opts={}){
-    if(player.ammo <= 0) return;
+  function shoot(tx,ty,opts={}) {
+    if(player.ammo<=0) return;
     player.ammo--;
     const angle = Math.atan2(ty-player.y, tx-player.x);
-    const speed = opts.speed || 600;
-    const dmg = (opts.dmg || 12) * player.weaponPower;
-    projectiles.push({x:player.x,y:player.y,vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed, r:4, dmg:dmg, ttl:2});
-    // recoil / little particle
-    for(let i=0;i<6;i++){
-      particles.push({x:player.x, y:player.y, vx:Math.cos(angle+rand(-0.6,0.6))*rand(40,220), vy:Math.sin(angle+rand(-0.6,0.6))*rand(40,220), life:0.3+Math.random()*0.4, col:'#ffcc88'});
-    }
+    projectiles.push({x:player.x,y:player.y,vx:Math.cos(angle)*(opts.speed||600),vy:Math.sin(angle)*(opts.speed||600),r:4,dmg:(opts.dmg||12)*player.weaponPower,ttl:2});
   }
-
-  // Magic
   function castMagic(){
-    if(!player.magicReady || player.magicCooldown>0) return;
-    player.magicReady = false;
-    player.magicCooldown = 8; // seconds
-    // fireball projectile
+    if(!player.magicReady||player.magicCooldown>0) return;
+    player.magicReady=false; player.magicCooldown=8;
     const angle = Math.atan2(mouse.y-player.y, mouse.x-player.x);
-    projectiles.push({x:player.x,y:player.y,vx:Math.cos(angle)*420, vy:Math.sin(angle)*420, r:10, dmg:45, ttl:2.2, magic:true});
+    projectiles.push({x:player.x,y:player.y,vx:Math.cos(angle)*420,vy:Math.sin(angle)*420,r:10,dmg:45,ttl:2.2,magic:true});
   }
-
-  // Enemies
-  function spawnEnemy(x,y,hp,spd){
-    enemies.push({x,y,r:12, hp:hp, maxHp:hp, speed: spd, target:player});
-  }
-
+  function spawnEnemy(x,y,hp,spd){ enemies.push({x,y,r:12,hp,maxHp:hp,speed:spd,target:player}); }
   function startWave(){
-    wave++;
-    waveEl.textContent = wave;
+    wave++; waveEl.textContent=wave;
     const count = config.spawnPerWaveBase + wave*2;
     for(let i=0;i<count;i++){
-      // spawn outside edges
       const edge = Math.floor(Math.random()*4);
-      let x,y;
-      if(edge===0){ x = -20; y = rand(0,H) }
-      if(edge===1){ x = W+20; y = rand(0,H) }
-      if(edge===2){ x = rand(0,W); y = -20 }
-      if(edge===3){ x = rand(0,W); y = H+20 }
+      let x,y; if(edge===0){x=-20;y=rand(0,H)} if(edge===1){x=W+20;y=rand(0,H)} if(edge===2){x=rand(0,W);y=-20} if(edge===3){x=rand(0,W);y=H+20}
       const hp = config.enemyBaseHealth + wave*6 + Math.random()*10;
       const spd = config.enemySpeed + wave*2 + Math.random()*10;
       setTimeout(()=> spawnEnemy(x,y,hp,spd), i*350);
     }
   }
 
-  // Game update loop
+  // Джойстик
+  let joystickActive=false, joystickCenter={x:0,y:0}, joystickVector={x:0,y:0};
+  const joystick = document.getElementById('joystick');
+  const joystickKnob = document.getElementById('joystickKnob');
+  function onJoystickStart(e){ e.preventDefault(); joystickActive=true; const rect=joystick.getBoundingClientRect(); joystickCenter={x:rect.left+rect.width/2,y:rect.top+rect.height/2}; }
+  function onJoystickMove(e){ if(!joystickActive) return; const t=e.touches?e.touches[0]:e; const dx=t.clientX-joystickCenter.x, dy=t.clientY-joystickCenter.y; const dist=Math.min(Math.hypot(dx,dy),40); const ang=Math.atan2(dy,dx); joystickVector.x=Math.cos(ang)*(dist/40); joystickVector.y=Math.sin(ang)*(dist/40); joystickKnob.style.transform=`translate(${joystickVector.x*40}px,${joystickVector.y*40}px)`; }
+  function onJoystickEnd(){ joystickActive=false; joystickVector.x=joystickVector.y=0; joystickKnob.style.transform=`translate(0,0)`; }
+  joystick.addEventListener('touchstart',onJoystickStart); joystick.addEventListener('touchmove',onJoystickMove); joystick.addEventListener('touchend',onJoystickEnd);
+  joystick.addEventListener('mousedown',onJoystickStart); window.addEventListener('mousemove',onJoystickMove); window.addEventListener('mouseup',onJoystickEnd);
+
+  // Кнопки
+  document.getElementById('btnShoot').addEventListener('touchstart',()=> shoot(mouse.x,mouse.y,{dmg:12,speed:700}));
+  document.getElementById('btnShoot').addEventListener('mousedown',()=> shoot(mouse.x,mouse.y,{dmg:12,speed:700}));
+  document.getElementById('btnMagic').addEventListener('touchstart',()=> castMagic());
+  document.getElementById('btnMagic').addEventListener('mousedown',()=> castMagic());
+
   function update(dt){
-    // player movement towards mouse on click
-    if(mouse.down){
-      const dx = mouse.x - player.x, dy = mouse.y - player.y;
-      const d = Math.hypot(dx,dy);
-      const max = player.speed * dt;
-      if(d > 4){
-        player.x += dx/d * Math.min(max,d);
-        player.y += dy/d * Math.min(max,d);
-      }
+    if(joystickVector.x||joystickVector.y){
+      player.x += joystickVector.x * player.speed * dt;
+      player.y += joystickVector.y * player.speed * dt;
     }
-
-    // update magic cooldown
-    if(player.magicCooldown > 0){
-      player.magicCooldown -= dt;
-      if(player.magicCooldown <= 0){ player.magicCooldown = 0; player.magicReady = true; }
-    }
-
-    // projectiles
-    for(let i=projectiles.length-1;i>=0;i--){
-      const p = projectiles[i];
-      p.x += p.vx*dt;
-      p.y += p.vy*dt;
-      p.ttl -= dt;
-      if(p.ttl <= 0 || p.x< -50 || p.x>W+50 || p.y < -50 || p.y>H+50) projectiles.splice(i,1);
-    }
-
-    // particles
-    for(let i=particles.length-1;i>=0;i--){
-      const p = particles[i];
-      p.x += p.vx*dt; p.y += p.vy*dt; p.vx *= 0.98; p.vy *= 0.98;
-      p.life -= dt;
-      if(p.life <= 0) particles.splice(i,1);
-    }
-
-    // towers auto-fire
-    towers.forEach(t=>{
-      t.lastFire += dt;
-      if(t.lastFire >= t.fireRate){
-        // find closest enemy in range
-        let target = null; let best = 1e9;
-        enemies.forEach(e=>{
-          const d = Math.hypot(e.x-t.x, e.y-t.y);
-          if(d <= t.range && d < best){
-            best = d; target = e;
-          }
-        });
-        if(target){
-          t.lastFire = 0;
-          // fire projectile
-          const angle = Math.atan2(target.y-t.y, target.x-t.x);
-          projectiles.push({x:t.x,y:t.y,vx:Math.cos(angle)*320, vy:Math.sin(angle)*320, r:5, dmg:8*t.power, ttl:2});
-        }
-      }
-    });
-
-    // enemies movement and attack
-    for(let i=enemies.length-1;i>=0;i--){
-      const e = enemies[i];
-      // move towards target (player)
-      let tx = e.target.x, ty = e.target.y;
-      // if towers exist, enemies prefer the nearest tower if nearer
-      let nearestTower = null, td=1e9;
-      towers.forEach(tw=>{
-        const d2 = Math.hypot(tw.x-e.x, tw.y-e.y);
-        if(d2 < td){ td = d2; nearestTower = tw; }
-      });
-      if(nearestTower && td < Math.hypot(player.x-e.x, player.y-e.y)){
-        tx = nearestTower.x; ty = nearestTower.y;
-      }
-      const dx = tx - e.x, dy = ty - e.y;
-      const d = Math.hypot(dx,dy) || 1;
-      e.x += dx/d * e.speed * dt;
-      e.y += dy/d * e.speed * dt;
-
-      // collision with player
-      if(Math.hypot(e.x-player.x, e.y-player.y) < e.r + player.r){
-        // damage player
-        player.hp -= 12 * dt; // continuous damage
-        if(player.hp <= 0){ player.hp = 0; gameOver(); }
-      }
-      // collision with towers
-      for(let j=towers.length-1;j>=0;j--){
-        const t = towers[j];
-        if(Math.hypot(e.x-t.x, e.y-t.y) < e.r + 10){
-          t.hp -= 18*dt;
-          if(t.hp <= 0){
-            towers.splice(j,1);
-            // tower destroyed spawns particles
-            for(let k=0;k<20;k++) particles.push({x:t.x,y:t.y,vx:rand(-200,200),vy:rand(-200,200),life:0.6+Math.random()*0.6,col:'#888'});
-          }
-        }
-      }
-    }
-
-    // projectile hits enemy
-    for(let i=projectiles.length-1;i>=0;i--){
-      const p = projectiles[i];
-      // magic explosion on hit
-      let exploded = false;
-      for(let j=enemies.length-1;j>=0;j--){
-        const e = enemies[j];
-        if(Math.hypot(p.x-e.x,p.y-e.y) < p.r + e.r){
-          // hit
-          e.hp -= p.dmg;
-          // small particle
-          for(let k=0;k<6;k++) particles.push({x:p.x,y:p.y,vx:rand(-120,120),vy:rand(-120,120),life:0.3+Math.random()*0.4,col: p.magic ? '#ff6a33' : '#fff'});
-          if(p.magic){
-            // magic explosion damage to nearby enemies
-            enemies.forEach(e2=> {
-              const d = Math.hypot(e2.x-p.x, e2.y-p.y);
-              if(d < 60) e2.hp -= 30*(1 - d/60);
-            });
-            // explosion particle burst
-            for(let k=0;k<18;k++) particles.push({x:p.x,y:p.y,vx:rand(-300,300),vy:rand(-300,300),life:0.6+Math.random()*0.6,col:'#ff8a33'});
-          }
-          exploded = true;
-          projectiles.splice(i,1);
-          break;
-        }
-      }
-      if(exploded) continue;
-    }
-
-    // remove dead enemies
-    for(let i=enemies.length-1;i>=0;i--){
-      const e = enemies[i];
-      if(e.hp <= 0){
-        // drop gold
-        gold += Math.round(config.goldPerKill + Math.random()*5);
-        // add kill particles
-        for(let k=0;k<10;k++){
-          particles.push({x:e.x,y:e.y,vx:rand(-160,160),vy:rand(-160,160),life:0.5+Math.random()*0.6,col:'#66ff66'});
-        }
-        enemies.splice(i,1);
-      }
-    }
-
     updateUI();
   }
-
-  // UI update
   function updateUI(){
-    hpbar.style.width = (player.hp / player.hpMax * 100) + '%';
-    hptext.textContent = Math.round(player.hp) + ' / ' + player.hpMax;
-    goldEl.textContent = Math.round(gold);
-    waveEl.textContent = wave;
-    enemiesCountEl.textContent = enemies.length;
-    ammoEl.textContent = player.ammo;
-    foodEl.textContent = player.food;
-    magicReadyEl.textContent = player.magicReady ? 'Да' : Math.ceil(player.magicCooldown) + 'с';
-    weaponNameEl.textContent = player.weaponPower > 1 ? `Пистолет +${player.weaponPower-1}` : 'Пистолет';
+    hpbar.style.width = (player.hp/player.hpMax*100)+'%';
+    hptext.textContent=Math.round(player.hp)+' / '+player.hpMax;
+    goldEl.textContent=Math.round(gold);
+    waveEl.textContent=wave;
+    enemiesCountEl.textContent=enemies.length;
+    ammoEl.textContent=player.ammo;
+    foodEl.textContent=player.food;
+    magicReadyEl.textContent=player.magicReady ? 'Да' : Math.ceil(player.magicCooldown)+'с';
+    weaponNameEl.textContent=player.weaponPower>1 ? `Пистолет +${player.weaponPower-1}` : 'Пистолет';
   }
-
-  // Game over
-  function gameOver(){
-    // reset some state, but allow restart
-    // show modal-like effect
-    setTimeout(()=> {
-      if(confirm('Вы погибли! Начать заново?')){
-        // reset
-        gold = 50; wave = 0; enemies = []; projectiles=[]; towers=[]; particles=[];
-        player.hp = player.hpMax; player.ammo = 30; player.food = 0; player.weaponPower = 1; player.magicCooldown = 0; player.magicReady = true;
-        updateUI();
-      } else {
-        // freeze game loop by stopping updates (we'll just reduce timeScale)
-        config.timeScale = 0;
-      }
-    }, 50);
-  }
-
-  // Draw loop
-  function draw(t){
-    const time = now();
-    let dt = lastTime ? (time - lastTime) : 0;
-    lastTime = time;
-    dt *= config.timeScale;
-    // clamp dt
-    dt = Math.min(dt, 0.05);
-
-    // update
+  function draw(){
+    const time=now();
+    let dt=lastTime?(time-lastTime):0; lastTime=time; dt=Math.min(dt,0.05);
     update(dt);
-
-    // background grid
     ctx.clearRect(0,0,W,H);
-    ctx.save();
-    // simple floor pattern
-    ctx.fillStyle = '#07110b';
-    ctx.fillRect(0,0,W,H);
-    ctx.globalAlpha = 0.05;
-    ctx.fillStyle = '#fff';
-    for(let gx=0; gx<W; gx+=40){
-      ctx.fillRect(gx,0,1,H);
-    }
-    for(let gy=0; gy<H; gy+=40){
-      ctx.fillRect(0,gy,W,1);
-    }
-    ctx.globalAlpha = 1;
-    ctx.restore();
-
-    // towers (draw base & range faint)
-    towers.forEach(t=>{
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(t.x,t.y, t.range, 0, Math.PI*2);
-      ctx.fillStyle = 'rgba(30,60,30,0.03)';
-      ctx.fill();
-      ctx.restore();
-
-      // body
-      ctx.save();
-      ctx.translate(t.x,t.y);
-      ctx.fillStyle = '#5e6b4a';
-      ctx.beginPath();
-      ctx.rect(-12,-12,24,24);
-      ctx.fill();
-      // barrel
-      ctx.fillStyle = '#333';
-      ctx.fillRect(6,-4,12,8);
-      ctx.restore();
-
-      // tower HP bar
-      ctx.save();
-      ctx.fillStyle = '#222';
-      ctx.fillRect(t.x-18, t.y-28, 36,6);
-      ctx.fillStyle = '#6f6';
-      const w = clamp(t.hp / (60 + (t.power)*40), 0, 1);
-      ctx.fillRect(t.x-18, t.y-28, 36*w,6);
-      ctx.restore();
-    });
-
-    // enemies
-    enemies.forEach(e=>{
-      // body
-      ctx.save();
-      ctx.translate(e.x,e.y);
-      // zombie color changes with hp
-      const hfrac = clamp(e.hp / e.maxHp, 0,1);
-      ctx.fillStyle = `rgba(${200 + Math.round(55*(1-hfrac))}, ${60 + Math.round(60*hfrac)}, ${70}, 1)`;
-      ctx.beginPath(); ctx.arc(0,0, e.r, 0, Math.PI*2); ctx.fill();
-      // face
-      ctx.fillStyle = '#111';
-      ctx.fillRect(-6,-2,4,3); ctx.fillRect(2,-2,4,3);
-      // hp
-      ctx.restore();
-
-      // hp bar
-      ctx.save();
-      ctx.fillStyle = '#222';
-      ctx.fillRect(e.x-16, e.y-22, 32,5);
-      ctx.fillStyle = '#f66';
-      ctx.fillRect(e.x-16, e.y-22, 32*clamp(e.hp/e.maxHp,0,1),5);
-      ctx.restore();
-    });
-
-    // projectiles
-    projectiles.forEach(p=>{
-      ctx.save();
-      if(p.magic){
-        ctx.beginPath();
-        ctx.fillStyle = '#ff7a33';
-        ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
-      } else {
-        ctx.beginPath();
-        ctx.fillStyle = '#fff';
-        ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
-      }
-      ctx.restore();
-    });
-
-    // player
-    ctx.save();
-    ctx.translate(player.x, player.y);
-    // body
-    ctx.beginPath();
-    ctx.fillStyle = '#4aa3ff';
-    ctx.arc(0,0, player.r, 0, Math.PI*2); ctx.fill();
-    // direction indicator
-    const ang = Math.atan2(mouse.y-player.y, mouse.x-player.x);
-    ctx.fillStyle = '#072';
-    ctx.beginPath();
-    ctx.moveTo(0,0); ctx.lineTo(Math.cos(ang)*player.r, Math.sin(ang)*player.r); ctx.lineTo(Math.cos(ang+0.8)*player.r*0.6, Math.sin(ang+0.8)*player.r*0.6);
-    ctx.fill();
-    ctx.restore();
-
-    // particles
-    particles.forEach(p=>{
-      ctx.save();
-      ctx.globalAlpha = clamp(p.life,0,1);
-      ctx.fillStyle = p.col || '#fff';
-      ctx.beginPath(); ctx.arc(p.x,p.y, 3,0,Math.PI*2); ctx.fill();
-      ctx.restore();
-    });
-
-    // placing tower preview
-    if(placingTower){
-      ctx.save();
-      ctx.globalAlpha = 0.6;
-      ctx.beginPath();
-      ctx.fillStyle = '#bbffbb';
-      ctx.arc(mouse.x, mouse.y, 10,0,Math.PI*2); ctx.fill();
-      ctx.beginPath();
-      ctx.strokeStyle = '#55aa55';
-      ctx.setLineDash([6,6]);
-      ctx.arc(mouse.x, mouse.y, placingTower.power*config.towerRange,0,Math.PI*2); ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.restore();
-    }
-
-    // HUD text
-    ctx.save();
-    ctx.fillStyle = '#ddd';
-    ctx.font = '13px Arial';
-    ctx.fillText('HP: ' + Math.round(player.hp) + '  Ammo: ' + player.ammo + '  Food: ' + player.food + '  Gold: ' + Math.round(gold), 12, H - 12);
-    ctx.restore();
-
-    // draw loop end
     requestAnimationFrame(draw);
   }
-
-  // Shooting on left click
-  canvas.addEventListener('click', e=>{
-    shoot(mouse.x, mouse.y, {dmg:12, speed:700});
-  });
-
-  // Eat food on 'E'
-  window.addEventListener('keydown', e=>{
-    if(e.key === 'e' || e.key === 'E'){
-      if(player.food > 0 && player.hp < player.hpMax){
-        player.food--;
-        player.hp = clamp(player.hp + 30, 0, player.hpMax);
-        // healing particles
-        for(let i=0;i<12;i++) particles.push({x:player.x+rand(-6,6), y:player.y+rand(-6,6), vx:rand(-60,60), vy:rand(-60,60), life:0.6, col:'#88ff88'});
-      }
-    }
-    if(e.key === '1'){ /* could switch weapons */ }
-  });
-
-  // initial UI
-  updateUI();
-
-  // spawn some initial enemies for a demo
   startWave();
-
-  // start draw loop
   requestAnimationFrame(draw);
-
-  // small autosave: increment gold slowly to avoid stagnation
-  setInterval(()=> { gold += 1; updateUI(); }, 7000);
-
 })();
 </script>
 </body>
