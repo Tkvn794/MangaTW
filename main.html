@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Чат по ID комнаты</title>
   <link rel="stylesheet" href="style.css">
-  
+
   <!-- Подключение Firebase SDK (Compat версия) -->
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-  
+
   <!-- Инициализация Firebase -->
   <script>
     const firebaseConfig = {
@@ -29,14 +29,25 @@
 <body>
   <div class="container">
     <h1>Чат по ID комнаты</h1>
-    <input type="text" id="room-id" placeholder="Введите ID комнаты">
-    <button id="join-btn">Присоединиться</button>
+    
+    <!-- Экран настройки пользователя -->
+    <div id="setup-screen">
+      <input type="text" id="user-name-input" placeholder="Введите ваше имя">
+      <button id="save-name-btn">Сохранить имя</button>
+    </div>
 
-    <div id="chat" style="display: none;">
-      <div id="messages"></div>
-      <div class="input-container">
-        <input type="text" id="message-input" placeholder="Введите сообщение">
-        <button id="send-btn">Отправить</button>
+    <!-- Экран чата (изначально скрыт) -->
+    <div id="chat-screen" style="display: none;">
+      <p>Ваш ID: <span id="user-id-display"></span></p>
+      <input type="text" id="room-id" placeholder="Введите ID комнаты">
+      <button id="join-btn">Присоединиться</button>
+
+      <div id="chat" style="display: none;">
+        <div id="messages"></div>
+        <div class="input-container">
+          <input type="text" id="message-input" placeholder="Введите сообщение">
+          <button id="send-btn">Отправить</button>
+        </div>
       </div>
     </div>
   </div>
