@@ -3,22 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Тест Firebase</title>
+    <title>Простой тест Firebase</title>
+    <!-- Подключение Firebase SDK (Compat версия) -->
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        input, button { padding: 10px; margin: 5px; font-size: 16px; }
+        #messages { border: 1px solid #ccc; padding: 10px; min-height: 200px; margin-top: 10px; }
+        .message { padding: 5px; margin: 5px 0; border-bottom: 1px solid #eee; }
+    </style>
 </head>
 <body>
-    <h2>Тест Firebase на телефоне</h2>
-    <div id="status">Загрузка...</div>
-    <br>
-    <input type="text" id="test-message" placeholder="Введите тестовое сообщение" style="width: 70%;">
-    <button onclick="sendMessage()" style="width: 25%;">Отправить</button>
-    <br><br>
+    <h2>Простой тест Firebase</h2>
+    <div id="status">Статус: Инициализация...</div>
+    
+    <input type="text" id="message-input" placeholder="Введите сообщение">
+    <button onclick="sendMessage()">Отправить</button>
+    
     <h3>Сообщения:</h3>
-    <div id="messages" style="border:1px solid #ccc; padding:10px; min-height:200px; overflow-y: auto;"></div>
+    <div id="messages"></div>
 
     <script>
-        // Конфигурация Firebase
+        // ВАША КОНФИГУРАЦИЯ FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyCfzfqOEXyO4f9w_WHfb5ba6VucR4C1h7Q",
             authDomain: "webrtc-chat-d4b03.firebaseapp.com",
@@ -30,51 +37,75 @@
         };
 
         let messagesRef;
+        const TEST_ROOM = "simple_test_room_123"; // Жестко заданная комната для теста
 
+        // Инициализация Firebase
         try {
-            // Инициализация Firebase
             firebase.initializeApp(firebaseConfig);
-            document.getElementById('status').innerHTML = '✅ Firebase подключен<br>';
-            
-            // Подключение к тестовой комнате
+            document.getElementById('status').innerText = "✅ Firebase инициализирован";
+            console.log("Firebase App:", firebase.app().options.projectId);
+
+            // Подключение к базе данных
             const db = firebase.database();
-            messagesRef = db.ref('mobile_test_room');
-            
-            document.getElementById('status').innerHTML += '✅ Подключены к комнате<br>';
-            
-            // Слушаем сообщения
-            messagesRef.on('child_added', (snapshot) => {
-                const data = snapshot.val();
-                const msgDiv = document.createElement('div');
-                msgDiv.innerHTML = `<strong>${data.text}</strong> <small>(${new Date(data.timestamp).toLocaleTimeString()})</small>`;
-                document.getElementById('messages').appendChild(msgDiv);
-                document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
-                document.getElementById('status').innerHTML += '📥 Получено сообщение<br>';
-            });
-            
-            document.getElementById('status').innerHTML += '✅ Готов к работе<br>';
-            
-        } catch (error) {
-            document.getElementById('status').innerHTML += '❌ Ошибка: ' + error.message;
-            console.error('Ошибка:', error);
-        }
-        
-        function sendMessage() {
-            try {
-                const message = document.getElementById('test-message').value;
-                if (!message.trim()) return;
+            messagesRef = db.ref(`messages/${TEST_ROOM}`);
+            document.getElementById('status').innerText = "✅ Подключены к комнате: " + TEST_ROOM;
+            console.log("Messages ref path:", messagesRef.toString());
+
+            // Слушатель новых сообщений
+            messagesRef.on('value', (snapshot) => {
+                console.log("Получены данные из БД:", snapshot.val());
+                const messagesDiv = document.getElementById('messages');
+                messagesDiv.innerHTML = "<p><em>Загрузка сообщений...</em></p>";
                 
-                messagesRef.push({
-                    text: message,
-                    timestamp: Date.now()
+                // Очистим и перерисуем все сообщения
+                messagesDiv.innerHTML = "";
+                snapshot.forEach((childSnapshot) => {
+                    const data = childSnapshot.val();
+                    const msgElement = document.createElement('div');
+                    msgElement.className = 'message';
+                    msgElement.textContent = `[${new Date(data.timestamp || Date.now()).toLocaleTimeString()}] ${data.text || 'Нет текста'}`;
+                    messagesDiv.appendChild(msgElement);
                 });
                 
-                document.getElementById('test-message').value = '';
-                document.getElementById('status').innerHTML += '📤 Сообщение отправлено<br>';
-                
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                document.getElementById('status').innerText = "✅ Сообщения загружены/обновлены";
+            }, (error) => {
+                console.error("Ошибка при получении сообщений:", error);
+                document.getElementById('status').innerText = "❌ Ошибка получения сообщений: " + error.message;
+            });
+
+        } catch (error) {
+            console.error("Критическая ошибка инициализации Firebase:", error);
+            document.getElementById('status').innerText = "❌ Критическая ошибка: " + error.message;
+        }
+
+        function sendMessage() {
+            const messageText = document.getElementById('message-input').value.trim();
+            if (!messageText) {
+                alert("Введите сообщение!");
+                return;
+            }
+            if (!messagesRef) {
+                alert("Firebase не инициализирован!");
+                return;
+            }
+
+            try {
+                messagesRef.push({
+                    text: messageText,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP || Date.now(),
+                    sender: "Тестовый пользователь"
+                }).then(() => {
+                    console.log("Сообщение успешно отправлено");
+                    document.getElementById('status').innerText = "📤 Сообщение отправлено";
+                    document.getElementById('message-input').value = '';
+                }).catch((error) => {
+                    console.error("Ошибка при отправке сообщения:", error);
+                    document.getElementById('status').innerText = "❌ Ошибка отправки: " + error.message;
+                });
             } catch (error) {
-                document.getElementById('status').innerHTML += '❌ Ошибка отправки: ' + error.message;
-                console.error('Ошибка отправки:', error);
+                console.error("Ошибка при попытке отправки:", error);
+                document.getElementById('status').innerText = "❌ Ошибка при отправке: " + error.message;
             }
         }
     </script>
