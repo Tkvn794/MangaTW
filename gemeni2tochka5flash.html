@@ -2,1075 +2,389 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Космический шутер</title>
+    <title>Битва с Зомби</title>
     <style>
-        /* Общие стили для всего документа */
-        :root {
-            --primary-color: #00bcd4; /* Бирюзовый */
-            --secondary-color: #ffc107; /* Желтый */
-            --background-color: #121212; /* Темный фон */
-            --text-color: #e0e0e0; /* Светлый текст */
-            --danger-color: #f44336; /* Красный */
-            --success-color: #4caf50; /* Зеленый */
-            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            --border-radius: 8px;
-            --font-size-small: 12px;
-            --font-size-medium: 16px;
-            --font-size-large: 24px;
-        }
-
         body {
-            margin: 0;
-            padding: 0;
-            font-family: var(--font-family);
-            background-color: var(--background-color);
-            color: var(--text-color);
+            background-color: #333;
+            color: white;
+            font-family: Arial, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
             overflow: hidden;
-            flex-direction: column;
-            gap: 1rem;
         }
 
-        .container {
+        #game-container {
             position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-grow: 1;
+            width: 800px;
+            height: 600px;
+            border: 2px solid white;
+            background-color: #222;
+            cursor: crosshair;
+            overflow: hidden;
         }
 
-        canvas {
-            background-color: #000;
-            border: 2px solid var(--primary-color);
-            border-radius: var(--border-radius);
-            box-shadow: 0 0 15px var(--primary-color);
-            max-width: 90vw;
-            max-height: 80vh;
-            display: block;
-        }
-
-        .ui-overlay {
+        #player {
+            width: 30px;
+            height: 30px;
+            background-color: limegreen;
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            pointer-events: none; /* Позволяет кликам проходить на холст */
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
         }
 
-        .menu-container {
-            background-color: rgba(0, 0, 0, 0.85);
-            padding: 2rem;
-            border-radius: var(--border-radius);
-            border: 2px solid var(--primary-color);
-            box-shadow: 0 0 20px var(--primary-color);
-            text-align: center;
-            pointer-events: auto; /* Включает клики для меню */
-            max-width: 90%;
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
+        .zombie {
+            width: 25px;
+            height: 25px;
+            background-color: red;
+            position: absolute;
         }
 
-        .menu-container h1, .menu-container h2 {
-            margin: 0;
-            color: var(--secondary-color);
-            text-shadow: 0 0 10px var(--secondary-color);
+        .boss {
+            width: 75px;
+            height: 75px;
+            background-color: darkred;
+            position: absolute;
         }
 
-        .menu-container p {
-            font-size: var(--font-size-medium);
-            margin: 0.5rem 0;
-        }
-
-        .button-group {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-
-        button {
-            background-color: var(--primary-color);
-            color: var(--background-color);
-            border: none;
-            padding: 0.75rem 1.5rem;
-            font-size: var(--font-size-medium);
-            font-weight: bold;
-            cursor: pointer;
-            border-radius: var(--border-radius);
-            transition: all 0.2s ease-in-out;
-            text-transform: uppercase;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        }
-
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.4);
-            filter: brightness(1.1);
-        }
-
-        button:active {
-            transform: translateY(0);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        .settings-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin: 0.5rem 0;
-            gap: 1rem;
-        }
-
-        .setting-label {
-            font-size: var(--font-size-medium);
-        }
-
-        .slider {
-            -webkit-appearance: none;
-            width: 100%;
-            height: 8px;
-            background: #d3d3d3;
-            outline: none;
-            opacity: 0.7;
-            transition: opacity 0.2s;
-            border-radius: 4px;
-        }
-
-        .slider:hover {
-            opacity: 1;
-        }
-
-        .slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            background: var(--primary-color);
-            cursor: pointer;
+        .bullet {
+            width: 5px;
+            height: 5px;
+            background-color: yellow;
             border-radius: 50%;
+            position: absolute;
         }
 
-        .hud {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            right: 10px;
+        #info-panel {
+            width: 800px;
+            padding: 10px;
             display: flex;
             justify-content: space-between;
-            pointer-events: none;
-            font-weight: bold;
-            text-shadow: 0 0 5px #000;
-        }
-
-        .hud div {
-            padding: 5px 10px;
-            background-color: rgba(0, 0, 0, 0.5);
-            border-radius: 5px;
-            font-size: var(--font-size-large);
         }
         
-        .achievements-list {
-            list-style: none;
-            padding: 0;
-            margin: 1rem 0;
-            text-align: left;
-            max-height: 200px;
-            overflow-y: auto;
-            border: 1px solid var(--primary-color);
-            padding: 1rem;
-            border-radius: var(--border-radius);
-        }
-
-        .achievement-item {
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .achievement-item.unlocked::before {
-            content: '✔';
-            color: var(--success-color);
-            font-size: var(--font-size-large);
-        }
-
-        .achievement-item.locked::before {
-            content: '☐';
-            color: var(--danger-color);
-            font-size: var(--font-size-large);
-        }
-
-        .mobile-controls {
-            display: none;
+        #shop {
             position: absolute;
-            bottom: 10px;
-            width: 100%;
-            justify-content: space-around;
-            pointer-events: none;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            border: 2px solid white;
+            padding: 20px;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 100;
         }
 
-        .mobile-controls button {
-            pointer-events: auto;
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background-color: rgba(255, 255, 255, 0.2);
-            color: white;
-            font-size: 3rem;
-            display: flex;
+        .shop-item {
+            padding: 10px;
+            margin: 5px;
+            background-color: #555;
+            cursor: pointer;
+            border: 1px solid white;
+            width: 250px;
+            text-align: center;
+        }
+
+        #game-over-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            width: 100%;
+            height: 100%;
+            display: none;
             justify-content: center;
             align-items: center;
-            padding: 0;
-            border: 2px solid white;
-            opacity: 0.7;
+            flex-direction: column;
+            z-index: 200;
+            text-align: center;
         }
-        .mobile-controls button:active {
-            opacity: 1;
-        }
-
-        .mobile-controls button:first-child {
-            order: -1;
-        }
-        .mobile-controls button:last-child {
-            order: 1;
-        }
-
-        @media (max-width: 768px) {
-            .mobile-controls {
-                display: flex;
-            }
-            .menu-container {
-                padding: 1rem;
-            }
-            .menu-container h1 {
-                font-size: 2rem;
-            }
-            .menu-container h2 {
-                font-size: 1.5rem;
-            }
+        #game-over-screen button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 1.2em;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <canvas id="gameCanvas"></canvas>
 
-        <div id="uiOverlay" class="ui-overlay">
-            <!-- Меню старта -->
-            <div id="startMenu" class="menu-container">
-                <h1>Космический шутер</h1>
-                <p>Ваш рекорд: <span id="highScoreText">0</span></p>
-                <div class="button-group">
-                    <button id="startButton" aria-label="Начать игру">Играть</button>
-                    <button id="settingsButton" aria-label="Открыть настройки">Настройки</button>
-                    <button id="achievementsButton" aria-label="Показать достижения">Достижения</button>
-                </div>
-            </div>
+    <h1>Битва с Зомби</h1>
 
-            <!-- Меню паузы -->
-            <div id="pauseMenu" class="menu-container" style="display:none;">
-                <h2>Пауза</h2>
-                <div class="button-group">
-                    <button id="resumeButton" aria-label="Продолжить игру">Продолжить</button>
-                    <button id="pauseSettingsButton" aria-label="Открыть настройки">Настройки</button>
-                    <button id="pauseQuitButton" aria-label="Выйти в главное меню">Выйти</button>
-                </div>
-            </div>
-
-            <!-- Экран Game Over -->
-            <div id="gameOverMenu" class="menu-container" style="display:none;">
-                <h2>Игра окончена!</h2>
-                <p>Ваш счет: <span id="finalScoreText">0</span></p>
-                <p>Ваш рекорд: <span id="finalHighScoreText">0</span></p>
-                <div class="button-group">
-                    <button id="restartButton" aria-label="Начать заново">Начать заново</button>
-                    <button id="menuButton" aria-label="Выйти в главное меню">Главное меню</button>
-                </div>
-            </div>
-
-            <!-- Меню настроек -->
-            <div id="settingsMenu" class="menu-container" style="display:none;">
-                <h2>Настройки</h2>
-                <div class="settings-item">
-                    <span class="setting-label">Звук</span>
-                    <button id="soundToggleButton" aria-label="Переключить звук">Включен</button>
-                </div>
-                <div class="settings-item">
-                    <span class="setting-label">Чувствительность</span>
-                    <input type="range" min="0.1" max="1" value="0.5" step="0.05" id="sensitivitySlider" class="slider" aria-label="Чувствительность управления">
-                </div>
-                <div class="settings-item">
-                    <span class="setting-label">Сложность</span>
-                    <button id="difficultyToggleButton" aria-label="Переключить сложность">Нормально</button>
-                </div>
-                <div class="settings-item">
-                    <span class="setting-label">Цветовая тема</span>
-                    <button id="themeToggleButton" aria-label="Переключить цветовую тему">Тема 1</button>
-                </div>
-                <div class="button-group">
-                    <button id="settingsBackButton" aria-label="Назад">Назад</button>
-                </div>
-            </div>
-            
-            <!-- Экран достижений -->
-            <div id="achievementsMenu" class="menu-container" style="display:none;">
-                <h2>Достижения</h2>
-                <ul id="achievementsList" class="achievements-list"></ul>
-                <button id="achievementsBackButton" aria-label="Назад">Назад</button>
-            </div>
+    <div id="info-panel">
+        <div>
+            Здоровье: <span id="health-value">100</span>
+        </div>
+        <div>
+            Монеты: <span id="coins-value">0</span>
+        </div>
+        <div>
+            Уровень: <span id="round-value">1</span>
         </div>
     </div>
 
-    <!-- HUD (Интерфейс игрока) -->
-    <div id="hud" class="hud" style="display:none;">
-        <div>Счет: <span id="scoreDisplay">0</span></div>
-        <div>Здоровье: <span id="healthDisplay">100</span></div>
-    </div>
-    
-    <!-- Мобильные элементы управления -->
-    <div id="mobileControls" class="mobile-controls" style="display:none;">
-        <button id="moveLeftBtn" aria-label="Двигаться влево">&lt;</button>
-        <button id="shootBtn" aria-label="Стрелять">⚹</button>
-        <button id="moveRightBtn" aria-label="Двигаться вправо">&gt;</button>
-    </div>
-
-    <!-- Инструкции -->
-    <div style="font-size: var(--font-size-small); text-align: center; max-width: 80%; margin-top: 1rem; opacity: 0.8;">
-        <h3>Как играть</h3>
-        <p>Управляйте кораблем, чтобы избегать врагов и уничтожать их. Собирайте бонусы для получения временного щита. Цель — набрать как можно больше очков.</p>
-        <p><b>Горячие клавиши:</b></p>
-        <ul>
-            <li><b>WASD / Стрелки:</b> движение</li>
-            <li><b>Пробел:</b> выстрел</li>
-            <li><b>Esc:</b> пауза</li>
-        </ul>
-        <p>Для мобильных устройств доступны сенсорные кнопки.</p>
+    <div id="game-container">
+        <div id="player"></div>
+        <div id="shop">
+            <h2>Магазин</h2>
+            <div id="current-weapon">Текущее оружие: Старый пистолет</div>
+            <div class="shop-item" data-weapon="shotgun">
+                Дробовик (Урон: 20, Скорость: 500мс) - 100 монет
+            </div>
+            <div class="shop-item" data-weapon="machinegun">
+                Автомат (Урон: 5, Скорость: 100мс) - 250 монет
+            </div>
+            <div class="shop-item" data-weapon="sniper">
+                Снайперская винтовка (Урон: 100, Скорость: 1500мс) - 500 монет
+            </div>
+            <div class="shop-item" data-weapon="pistol">
+                Старый пистолет (Урон: 10, Скорость: 300мс) - 0 монет
+            </div>
+            <button onclick="toggleShop()">Закрыть</button>
+        </div>
+        <div id="game-over-screen">
+            <h2>Игра окончена!</h2>
+            <p>Вы продержались до уровня <span id="final-round"></span></p>
+            <p>Вы заработали <span id="final-coins"></span> монет</p>
+            <button onclick="location.reload()">Начать заново</button>
+        </div>
     </div>
 
     <script>
-        //----------------------------------------------------------------------
-        //  КРАТКОЕ ОПИСАНИЕ ИГРОВОГО КОДА
-        //----------------------------------------------------------------------
-        // Этот код реализует простую браузерную игру-шутер.
-        // Используются классы ES6+ для структурирования игровых объектов (Player, Enemy, Projectile).
-        // Главный класс Game управляет состоянием игры, циклами, отрисовкой и логикой.
-        // Игровой цикл реализован с помощью requestAnimationFrame для оптимальной производительности.
-        // Звуки генерируются динамически через Web Audio API, что позволяет избежать внешних файлов.
-        // Сохранение рекордов и настроек осуществляется с помощью localStorage.
-        // Поддерживается управление как с клавиатуры, так и с помощью сенсорных кнопок для мобильных устройств.
-        // Весь код содержится в одном HTML-файле, без внешних зависимостей.
-
-        //----------------------------------------------------------------------
-        //  ГЛОБАЛЬНЫЕ КОНСТАНТЫ И ПЕРЕМЕННЫЕ
-        //----------------------------------------------------------------------
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-
-        const D_WIDTH = 800;
-        const D_HEIGHT = 600;
-        canvas.width = D_WIDTH;
-        canvas.height = D_HEIGHT;
-
-        // UI-элементы
-        const uiOverlay = document.getElementById('uiOverlay');
-        const startMenu = document.getElementById('startMenu');
-        const pauseMenu = document.getElementById('pauseMenu');
-        const gameOverMenu = document.getElementById('gameOverMenu');
-        const settingsMenu = document.getElementById('settingsMenu');
-        const achievementsMenu = document.getElementById('achievementsMenu');
-        const hud = document.getElementById('hud');
-        const mobileControls = document.getElementById('mobileControls');
-
-        const startButton = document.getElementById('startButton');
-        const restartButton = document.getElementById('restartButton');
-        const menuButton = document.getElementById('menuButton');
-        const resumeButton = document.getElementById('resumeButton');
-        const settingsButton = document.getElementById('settingsButton');
-        const pauseSettingsButton = document.getElementById('pauseSettingsButton');
-        const pauseQuitButton = document.getElementById('pauseQuitButton');
-        const settingsBackButton = document.getElementById('settingsBackButton');
-        const achievementsButton = document.getElementById('achievementsButton');
-        const achievementsBackButton = document.getElementById('achievementsBackButton');
-        
-        const scoreDisplay = document.getElementById('scoreDisplay');
-        const healthDisplay = document.getElementById('healthDisplay');
-        const highScoreText = document.getElementById('highScoreText');
-        const finalScoreText = document.getElementById('finalScoreText');
-        const finalHighScoreText = document.getElementById('finalHighScoreText');
-
-        const soundToggleButton = document.getElementById('soundToggleButton');
-        const sensitivitySlider = document.getElementById('sensitivitySlider');
-        const difficultyToggleButton = document.getElementById('difficultyToggleButton');
-        const themeToggleButton = document.getElementById('themeToggleButton');
-
-        const moveLeftBtn = document.getElementById('moveLeftBtn');
-        const moveRightBtn = document.getElementById('moveRightBtn');
-        const shootBtn = document.getElementById('shootBtn');
-
-        let isMobile = window.innerWidth <= 768;
-        if (isMobile) {
-            mobileControls.style.display = 'flex';
-        }
-
-        //----------------------------------------------------------------------
-        //  КЛАССЫ ИГРОВЫХ ОБЪЕКТОВ
-        //----------------------------------------------------------------------
-
-        /**
-         * Класс игрока
-         */
-        class Player {
-            constructor(x, y, size) {
-                this.x = x;
-                this.y = y;
-                this.size = size;
-                this.speed = 5;
-                this.health = 100;
-                this.isShooting = false;
-                this.shootCooldown = 200; // мс между выстрелами
-                this.lastShotTime = 0;
-                this.shield = false;
-            }
-
-            draw() {
-                ctx.beginPath();
-                ctx.moveTo(this.x, this.y - this.size / 2);
-                ctx.lineTo(this.x - this.size / 2, this.y + this.size / 2);
-                ctx.lineTo(this.x + this.size / 2, this.y + this.size / 2);
-                ctx.closePath();
-                ctx.fillStyle = this.shield ? 'rgba(0, 255, 255, 0.7)' : 'white';
-                ctx.fill();
-
-                // Рисуем щит, если он активен
-                if (this.shield) {
-                    ctx.beginPath();
-                    ctx.arc(this.x, this.y, this.size * 1.5, 0, Math.PI * 2);
-                    ctx.strokeStyle = 'cyan';
-                    ctx.lineWidth = 3;
-                    ctx.stroke();
-                }
-            }
-
-            update(keys) {
-                const effectiveSpeed = this.speed * game.settings.sensitivity;
-                if ((keys['ArrowLeft'] || keys['KeyA']) && this.x > this.size / 2) {
-                    this.x -= effectiveSpeed;
-                }
-                if ((keys['ArrowRight'] || keys['KeyD']) && this.x < D_WIDTH - this.size / 2) {
-                    this.x += effectiveSpeed;
-                }
-                if ((keys['Space'] || this.isShooting) && performance.now() - this.lastShotTime > this.shootCooldown) {
-                    game.addProjectile(new Projectile(this.x, this.y, 5, 'red'));
-                    game.sound.shoot();
-                    this.lastShotTime = performance.now();
-                }
-            }
-        }
-
-        /**
-         * Класс снарядов
-         */
-        class Projectile {
-            constructor(x, y, size, color) {
-                this.x = x;
-                this.y = y;
-                this.size = size;
-                this.color = color;
-                this.speed = 7;
-            }
-
-            draw() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.fill();
-            }
-
-            update() {
-                this.y -= this.speed;
-            }
-        }
-
-        /**
-         * Класс врагов
-         */
-        class Enemy {
-            constructor(x, y, size, type = 'basic') {
-                this.x = x;
-                this.y = y;
-                this.size = size;
-                this.speed = 1 + Math.random() * 2;
-                this.type = type;
-            }
-
-            draw() {
-                if (this.type === 'basic') {
-                    ctx.beginPath();
-                    ctx.rect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
-                    ctx.fillStyle = varColor('danger-color');
-                    ctx.fill();
-                } else if (this.type === 'powerup') {
-                    ctx.beginPath();
-                    ctx.arc(this.x, this.y, this.size / 2, 0, Math.PI * 2);
-                    ctx.fillStyle = varColor('secondary-color');
-                    ctx.fill();
-                }
-            }
-
-            update() {
-                this.y += this.speed * (game.settings.difficulty === 'hard' ? 1.5 : 1);
-            }
-        }
-
-        /**
-         * Класс системы частиц
-         */
-        class ParticleSystem {
-            constructor() {
-                this.particles = [];
-            }
-
-            addParticles(x, y, count, color) {
-                for (let i = 0; i < count; i++) {
-                    this.particles.push({
-                        x: x,
-                        y: y,
-                        size: Math.random() * 5 + 1,
-                        vx: (Math.random() - 0.5) * 5,
-                        vy: (Math.random() - 0.5) * 5,
-                        color: color,
-                        alpha: 1,
-                        fadeRate: Math.random() * 0.05 + 0.01
-                    });
-                }
-            }
-
-            update() {
-                for (let i = this.particles.length - 1; i >= 0; i--) {
-                    const p = this.particles[i];
-                    p.x += p.vx;
-                    p.y += p.vy;
-                    p.alpha -= p.fadeRate;
-
-                    if (p.alpha <= 0) {
-                        this.particles.splice(i, 1);
-                    }
-                }
-            }
-
-            draw() {
-                this.particles.forEach(p => {
-                    ctx.fillStyle = `rgba(${p.color.r}, ${p.color.g}, ${p.color.b}, ${p.alpha})`;
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                    ctx.fill();
-                });
-            }
-        }
-
-        /**
-         * Класс менеджера звука
-         */
-        class SoundManager {
-            constructor() {
-                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                this.soundEnabled = true;
-            }
-
-            toggleSound() {
-                this.soundEnabled = !this.soundEnabled;
-            }
-
-            playSound(frequency, type, duration, volume) {
-                if (!this.soundEnabled) return;
-
-                const oscillator = this.audioContext.createOscillator();
-                const gainNode = this.audioContext.createGain();
-
-                oscillator.type = type;
-                oscillator.frequency.value = frequency;
-                gainNode.gain.setValueAtTime(volume, this.audioContext.currentTime);
-
-                // Затухание звука
-                gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + duration);
-
-                oscillator.connect(gainNode);
-                gainNode.connect(this.audioContext.destination);
-                oscillator.start();
-                oscillator.stop(this.audioContext.currentTime + duration);
-            }
-
-            shoot() {
-                this.playSound(440, 'sine', 0.1, 0.5);
-            }
-
-            explosion() {
-                this.playSound(100, 'sawtooth', 0.5, 0.7);
-            }
-
-            powerup() {
-                this.playSound(880, 'triangle', 0.2, 0.6);
-            }
-
-            // TODO: Добавить другие звуки (например, столкновение, Game Over)
-        }
-
-        //----------------------------------------------------------------------
-        //  ГЛАВНЫЙ КЛАСС ИГРЫ
-        //----------------------------------------------------------------------
-
-        class Game {
-            constructor() {
-                this.state = 'menu'; // 'menu', 'playing', 'paused', 'gameOver'
-                this.player = null;
-                this.enemies = [];
-                this.projectiles = [];
-                this.lastSpawnTime = 0;
-                this.spawnInterval = 2000;
-                this.score = 0;
-                this.highScore = 0;
-                this.lastFrameTime = 0;
-                this.particleSystem = new ParticleSystem();
-                this.sound = new SoundManager();
-                this.keys = {};
-                this.isShooting = false;
-                
-                // Настройки по умолчанию
-                this.settings = {
-                    soundEnabled: true,
-                    sensitivity: 0.5,
-                    difficulty: 'normal', // 'normal', 'hard'
-                    theme: 1
-                };
-
-                // Достижения
-                this.achievements = {
-                    score100: { name: 'Первые 100 очков', unlocked: false, requirement: 100 },
-                    score500: { name: '500 очков', unlocked: false, requirement: 500 },
-                    noDamage: { name: 'Без единой царапины', unlocked: false, requirement: 0, tracked: true },
-                    bulletDodger: { name: 'Уклонист', unlocked: false, requirement: 1000, tracked: true } // TODO: реализовать трекинг уклонений
-                };
-
-                this.loadData();
-                this.setupEventListeners();
-                this.updateUI();
-                this.gameLoop();
-            }
-
-            // Загрузка данных из localStorage
-            loadData() {
-                const savedHighScore = localStorage.getItem('highScore');
-                if (savedHighScore) {
-                    this.highScore = parseInt(savedHighScore, 10);
-                }
-
-                const savedSettings = localStorage.getItem('gameSettings');
-                if (savedSettings) {
-                    this.settings = JSON.parse(savedSettings);
-                }
-                
-                const savedAchievements = localStorage.getItem('achievements');
-                if (savedAchievements) {
-                    this.achievements = { ...this.achievements, ...JSON.parse(savedAchievements) };
-                }
-
-                // Применяем загруженные настройки
-                this.sound.soundEnabled = this.settings.soundEnabled;
-                soundToggleButton.textContent = this.settings.soundEnabled ? 'Включен' : 'Выключен';
-                sensitivitySlider.value = this.settings.sensitivity;
-                difficultyToggleButton.textContent = this.settings.difficulty === 'hard' ? 'Сложно' : 'Нормально';
-                themeToggleButton.textContent = `Тема ${this.settings.theme}`;
-                this.applyTheme();
-                highScoreText.textContent = this.highScore;
-            }
-
-            // Сохранение данных в localStorage
-            saveData() {
-                localStorage.setItem('highScore', this.highScore);
-                localStorage.setItem('gameSettings', JSON.stringify(this.settings));
-                localStorage.setItem('achievements', JSON.stringify(this.achievements));
-            }
-            
-            // Применение цветовой темы
-            applyTheme() {
-                let theme = this.settings.theme;
-                const root = document.documentElement;
-                if (theme === 1) {
-                    root.style.setProperty('--primary-color', '#00bcd4');
-                    root.style.setProperty('--secondary-color', '#ffc107');
-                } else if (theme === 2) {
-                    root.style.setProperty('--primary-color', '#ff5722');
-                    root.style.setProperty('--secondary-color', '#cddc39');
-                } else {
-                    root.style.setProperty('--primary-color', '#9c27b0');
-                    root.style.setProperty('--secondary-color', '#2196f3');
-                }
-            }
-
-            // Настройка обработчиков событий
-            setupEventListeners() {
-                document.addEventListener('keydown', e => {
-                    this.keys[e.code] = true;
-                    if (e.code === 'Escape') {
-                        if (this.state === 'playing') {
-                            this.pauseGame();
-                        } else if (this.state === 'paused') {
-                            this.resumeGame();
-                        }
-                    }
-                });
-
-                document.addEventListener('keyup', e => {
-                    delete this.keys[e.code];
-                });
-                
-                // Сенсорные кнопки для мобильных
-                moveLeftBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.keys['ArrowLeft'] = true; });
-                moveLeftBtn.addEventListener('touchend', (e) => { e.preventDefault(); delete this.keys['ArrowLeft']; });
-                moveRightBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.keys['ArrowRight'] = true; });
-                moveRightBtn.addEventListener('touchend', (e) => { e.preventDefault(); delete this.keys['ArrowRight']; });
-                shootBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.isShooting = true; });
-                shootBtn.addEventListener('touchend', (e) => { e.preventDefault(); this.isShooting = false; });
-
-                // UI-кнопки
-                startButton.addEventListener('click', () => this.startGame());
-                restartButton.addEventListener('click', () => this.startGame());
-                menuButton.addEventListener('click', () => this.showMenu());
-                resumeButton.addEventListener('click', () => this.resumeGame());
-                settingsButton.addEventListener('click', () => this.showSettings());
-                pauseSettingsButton.addEventListener('click', () => this.showSettings(true));
-                pauseQuitButton.addEventListener('click', () => this.showMenu());
-                settingsBackButton.addEventListener('click', () => this.settingsBack());
-                achievementsButton.addEventListener('click', () => this.showAchievements());
-                achievementsBackButton.addEventListener('click', () => this.showMenu());
-
-                soundToggleButton.addEventListener('click', () => {
-                    this.settings.soundEnabled = !this.settings.soundEnabled;
-                    this.sound.toggleSound();
-                    soundToggleButton.textContent = this.settings.soundEnabled ? 'Включен' : 'Выключен';
-                    this.saveData();
-                });
-
-                sensitivitySlider.addEventListener('input', (e) => {
-                    this.settings.sensitivity = parseFloat(e.target.value);
-                    this.saveData();
-                });
-
-                difficultyToggleButton.addEventListener('click', () => {
-                    this.settings.difficulty = this.settings.difficulty === 'normal' ? 'hard' : 'normal';
-                    difficultyToggleButton.textContent = this.settings.difficulty === 'hard' ? 'Сложно' : 'Нормально';
-                    this.saveData();
-                });
-                
-                themeToggleButton.addEventListener('click', () => {
-                    this.settings.theme = (this.settings.theme % 3) + 1;
-                    themeToggleButton.textContent = `Тема ${this.settings.theme}`;
-                    this.applyTheme();
-                    this.saveData();
-                });
-
-                window.addEventListener('resize', () => {
-                    isMobile = window.innerWidth <= 768;
-                    mobileControls.style.display = isMobile ? 'flex' : 'none';
-                });
-            }
-
-            // Начать новую игру
-            startGame() {
-                this.state = 'playing';
-                this.player = new Player(D_WIDTH / 2, D_HEIGHT - 50, 30);
-                this.enemies = [];
-                this.projectiles = [];
-                this.score = 0;
-                this.lastSpawnTime = performance.now();
-                this.spawnInterval = 2000;
-                this.updateUI();
-                this.updateAchievements(this.score, this.player.health);
-            }
-            
-            // TODO: Реализовать функцию сброса достижений
-            // resetAchievements() { ... }
-
-            // Поставить игру на паузу
-            pauseGame() {
-                this.state = 'paused';
-                this.updateUI();
-            }
-
-            // Продолжить игру
-            resumeGame() {
-                this.state = 'playing';
-                this.lastFrameTime = performance.now(); // Сброс времени, чтобы избежать большого скачка
-                this.updateUI();
-                this.gameLoop();
-            }
-
-            // Показать меню
-            showMenu() {
-                this.state = 'menu';
-                this.saveData();
-                this.updateUI();
-            }
-            
-            // Показать настройки
-            showSettings(fromPause = false) {
-                this.settingsFromPause = fromPause;
-                this.state = 'settings';
-                this.updateUI();
-            }
-            
-            // Назад из настроек
-            settingsBack() {
-                this.state = this.settingsFromPause ? 'paused' : 'menu';
-                this.updateUI();
-            }
-            
-            // Показать достижения
-            showAchievements() {
-                this.state = 'achievements';
-                this.updateUI();
-            }
-
-            // Обновить интерфейс
-            updateUI() {
-                uiOverlay.style.display = 'flex';
-                hud.style.display = 'none';
-                mobileControls.style.display = 'none';
-
-                startMenu.style.display = 'none';
-                pauseMenu.style.display = 'none';
-                gameOverMenu.style.display = 'none';
-                settingsMenu.style.display = 'none';
-                achievementsMenu.style.display = 'none';
-
-                if (this.state === 'menu') {
-                    startMenu.style.display = 'flex';
-                    highScoreText.textContent = this.highScore;
-                } else if (this.state === 'playing') {
-                    uiOverlay.style.display = 'none';
-                    hud.style.display = 'flex';
-                    if (isMobile) mobileControls.style.display = 'flex';
-                    scoreDisplay.textContent = this.score;
-                    healthDisplay.textContent = this.player.health;
-                } else if (this.state === 'paused') {
-                    pauseMenu.style.display = 'flex';
-                } else if (this.state === 'gameOver') {
-                    gameOverMenu.style.display = 'flex';
-                    finalScoreText.textContent = this.score;
-                    finalHighScoreText.textContent = this.highScore;
-                } else if (this.state === 'settings') {
-                    settingsMenu.style.display = 'flex';
-                } else if (this.state === 'achievements') {
-                    achievementsMenu.style.display = 'flex';
-                    this.renderAchievements();
-                }
-            }
-            
-            // Отрисовка списка достижений
-            renderAchievements() {
-                const list = document.getElementById('achievementsList');
-                list.innerHTML = '';
-                for (const key in this.achievements) {
-                    const achievement = this.achievements[key];
-                    const li = document.createElement('li');
-                    li.className = `achievement-item ${achievement.unlocked ? 'unlocked' : 'locked'}`;
-                    li.textContent = achievement.name;
-                    list.appendChild(li);
-                }
-            }
-
-            // Обновление достижений
-            updateAchievements(score, health) {
-                if (score >= this.achievements.score100.requirement && !this.achievements.score100.unlocked) {
-                    this.achievements.score100.unlocked = true;
-                    // TODO: Показать уведомление о достижении
-                    console.log('Достижение разблокировано: ' + this.achievements.score100.name);
-                }
-                if (score >= this.achievements.score500.requirement && !this.achievements.score500.unlocked) {
-                    this.achievements.score500.unlocked = true;
-                    console.log('Достижение разблокировано: ' + this.achievements.score500.name);
-                }
-                if (score > 0 && health === 100 && !this.achievements.noDamage.unlocked) {
-                     // Это достижение будет разблокировано только если игрок продержится с полным здоровьем.
-                     // Так как оно не имеет конкретного требования по счету, его нужно проверять в конце игры.
-                }
-
-                // TODO: Добавить логику для других достижений, таких как "Уклонист"
-                this.saveData();
-            }
-
-            // Игровой цикл
-            gameLoop(timestamp = 0) {
-                if (this.state !== 'playing') {
-                    return;
-                }
-
-                // Расчет дельты времени для независимой от FPS логики
-                const deltaTime = timestamp - this.lastFrameTime;
-                this.lastFrameTime = timestamp;
-
-                this.update(deltaTime);
-                this.draw();
-                requestAnimationFrame(this.gameLoop.bind(this));
-            }
-
-            // Обновление состояния игры
-            update(deltaTime) {
-                // Обновление игрока
-                this.player.update(this.keys);
-
-                // Обновление снарядов
-                this.projectiles = this.projectiles.filter(p => {
-                    p.update();
-                    return p.y > -p.size;
-                });
-
-                // Обновление врагов
-                this.enemies = this.enemies.filter(e => {
-                    e.update();
-                    return e.y < D_HEIGHT + e.size;
-                });
-
-                // Спавн врагов
-                const now = performance.now();
-                const spawnRateMultiplier = this.settings.difficulty === 'hard' ? 0.7 : 1;
-                this.spawnInterval = Math.max(500, 2000 - this.score * 5) * spawnRateMultiplier;
-                if (now - this.lastSpawnTime > this.spawnInterval) {
-                    this.spawnEnemy();
-                    this.lastSpawnTime = now;
-                }
-
-                // Проверка коллизий снарядов и врагов
-                this.projectiles.forEach(p => {
-                    this.enemies.forEach(e => {
-                        if (checkCollision(p, e)) {
-                            // Коллизия!
-                            this.enemies = this.enemies.filter(enemy => enemy !== e);
-                            this.projectiles = this.projectiles.filter(proj => proj !== p);
-                            
-                            // Создаем частицы
-                            const enemyColor = varColorAsRGB(e.type === 'powerup' ? 'secondary-color' : 'danger-color');
-                            this.particleSystem.addParticles(e.x, e.y, 20, enemyColor);
-                            
-                            if (e.type === 'basic') {
-                                this.score += 10;
-                                this.sound.explosion();
-                            } else if (e.type === 'powerup') {
-                                this.player.shield = true;
-                                this.sound.powerup();
-                                setTimeout(() => this.player.shield = false, 5000); // Щит на 5 секунд
-                            }
-                        }
-                    });
-                });
-
-                // Проверка коллизий игрока и врагов
-                this.enemies.forEach(e => {
-                    if (checkCollision(this.player, e)) {
-                        if (this.player.shield) {
-                            this.player.shield = false; // Щит поглощает удар
-                            this.enemies = this.enemies.filter(enemy => enemy !== e);
-                            this.sound.explosion();
-                        } else {
-                            this.player.health -= 25;
-                            this.enemies = this.enemies.filter(enemy => enemy !== e);
-                            this.sound.explosion();
-                            this.particleSystem.addParticles(this.player.x, this.player.y, 50, varColorAsRGB('danger-color'));
-                        }
-
-                        if (this.player.health <= 0) {
-                            this.state = 'gameOver';
-                            if (this.score > this.highScore) {
-                                this.highScore = this.score;
-                            }
-                            // Проверяем достижение 'Без единой царапины'
-                            if (this.achievements.noDamage.tracked && this.player.health === 100) {
-                                this.achievements.noDamage.unlocked = true;
-                                console.log('Достижение разблокировано: ' + this.achievements.noDamage.name);
-                            }
-                            this.saveData();
-                            this.updateUI();
-                        }
-                    }
-                });
-                
-                // Обновление системы частиц
-                this.particleSystem.update();
-
-                // Обновление UI-элементов
-                scoreDisplay.textContent = this.score;
-                healthDisplay.textContent = this.player.health;
-            }
-
-            // Отрисовка всех объектов
-            draw() {
-                ctx.clearRect(0, 0, D_WIDTH, D_HEIGHT);
-
-                this.player.draw();
-                this.enemies.forEach(e => e.draw());
-                this.projectiles.forEach(p => p.draw());
-                this.particleSystem.draw();
-            }
-
-            // Создание врага
-            spawnEnemy() {
-                const x = Math.random() * (D_WIDTH - 40) + 20;
-                const size = 30;
-                const type = Math.random() < 0.1 ? 'powerup' : 'basic'; // 10% шанс на спавн бонуса
-                this.enemies.push(new Enemy(x, -size, size, type));
-            }
-        }
-        
-        //----------------------------------------------------------------------
-        //  ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-        //----------------------------------------------------------------------
-
-        /**
-         * Проверка коллизии между двумя кругами (для снарядов и врагов)
-         * или между кругом и квадратом (для игрока)
-         */
-        function checkCollision(obj1, obj2) {
-            // Простая коллизия
-            const dist = Math.sqrt(Math.pow(obj1.x - obj2.x, 2) + Math.pow(obj1.y - obj2.y, 2));
-            const obj1Radius = obj1.size / 2;
-            const obj2Radius = obj2.size / 2;
-            return dist < obj1Radius + obj2Radius;
-        }
-
-        /**
-         * Получает значение CSS-переменной
-         */
-        function varColor(name) {
-            return getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim();
-        }
-        
-        /**
-         * Получает значение CSS-переменной и преобразует в объект RGB
-         */
-        function varColorAsRGB(name) {
-            const hex = varColor(name).replace('#', '');
-            const r = parseInt(hex.substring(0, 2), 16);
-            const g = parseInt(hex.substring(2, 4), 16);
-            const b = parseInt(hex.substring(4, 6), 16);
-            return { r, g, b };
-        }
-
-        //----------------------------------------------------------------------
-        //  ЗАПУСК ИГРЫ
-        //----------------------------------------------------------------------
-        window.onload = function() {
-            const game = new Game();
-            // TODO: Можно добавить начальные инструкции или анимацию на стартовом экране
+        const gameContainer = document.getElementById('game-container');
+        const player = document.getElementById('player');
+        const healthValue = document.getElementById('health-value');
+        const coinsValue = document.getElementById('coins-value');
+        const roundValue = document.getElementById('round-value');
+        const shop = document.getElementById('shop');
+        const currentWeaponDisplay = document.getElementById('current-weapon');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const finalRound = document.getElementById('final-round');
+        const finalCoins = document.getElementById('final-coins');
+
+        let playerX = 400;
+        let playerY = 300;
+        let health = 100;
+        let coins = 0;
+        let round = 1;
+        let zombies = [];
+        let bullets = [];
+        let isGameOver = false;
+
+        const playerSpeed = 5;
+        let keys = {};
+
+        const weapons = {
+            pistol: { damage: 10, fireRate: 300, cost: 0 },
+            shotgun: { damage: 20, fireRate: 500, cost: 100 },
+            machinegun: { damage: 5, fireRate: 100, cost: 250 },
+            sniper: { damage: 100, fireRate: 1500, cost: 500 }
         };
+        let currentWeapon = weapons.pistol;
+        let lastShotTime = 0;
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            if (e.key === 'm') {
+                toggleShop();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        gameContainer.addEventListener('mousemove', (e) => {
+            const rect = gameContainer.getBoundingClientRect();
+            const angle = Math.atan2(e.clientY - rect.top - playerY, e.clientX - rect.left - playerX);
+            player.style.transform = `translate(-50%, -50%) rotate(${angle + Math.PI / 2}rad)`;
+        });
+
+        gameContainer.addEventListener('mousedown', (e) => {
+            if (isGameOver || shop.style.display !== 'none') return;
+            const now = Date.now();
+            if (now - lastShotTime > currentWeapon.fireRate) {
+                shoot(e);
+                lastShotTime = now;
+            }
+        });
+
+        function shoot(e) {
+            const rect = gameContainer.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const bullet = document.createElement('div');
+            bullet.className = 'bullet';
+            bullet.style.left = `${playerX}px`;
+            bullet.style.top = `${playerY}px`;
+            gameContainer.appendChild(bullet);
+
+            const angle = Math.atan2(mouseY - playerY, mouseX - playerX);
+            const speed = 10;
+            bullet.velX = Math.cos(angle) * speed;
+            bullet.velY = Math.sin(angle) * speed;
+            bullet.damage = currentWeapon.damage;
+
+            bullets.push(bullet);
+        }
+
+        function createZombie(isBoss = false) {
+            const zombie = document.createElement('div');
+            zombie.className = isBoss ? 'boss' : 'zombie';
+            
+            const side = Math.floor(Math.random() * 4);
+            let x, y;
+            if (side === 0) { // top
+                x = Math.random() * 800;
+                y = 0;
+            } else if (side === 1) { // right
+                x = 800;
+                y = Math.random() * 600;
+            } else if (side === 2) { // bottom
+                x = Math.random() * 800;
+                y = 600;
+            } else { // left
+                x = 0;
+                y = Math.random() * 600;
+            }
+
+            zombie.style.left = `${x}px`;
+            zombie.style.top = `${y}px`;
+            
+            zombie.health = isBoss ? 200 + (round * 50) : 10 + (round * 5);
+            zombie.speed = isBoss ? 0.5 + (round * 0.1) : 1 + (round * 0.2);
+            zombie.isBoss = isBoss;
+
+            gameContainer.appendChild(zombie);
+            zombies.push(zombie);
+        }
+
+        function update() {
+            if (isGameOver || shop.style.display !== 'none') return;
+
+            // Player movement
+            if (keys['w'] && playerY > 0) playerY -= playerSpeed;
+            if (keys['s'] && playerY < 600) playerY += playerSpeed;
+            if (keys['a'] && playerX > 0) playerX -= playerSpeed;
+            if (keys['d'] && playerX < 800) playerX += playerSpeed;
+
+            player.style.left = `${playerX}px`;
+            player.style.top = `${playerY}px`;
+
+            // Update bullets
+            bullets.forEach((bullet, index) => {
+                bullet.style.left = `${parseFloat(bullet.style.left) + bullet.velX}px`;
+                bullet.style.top = `${parseFloat(bullet.style.top) + bullet.velY}px`;
+
+                // Check for collision with zombies
+                zombies.forEach((zombie, zIndex) => {
+                    const bRect = bullet.getBoundingClientRect();
+                    const zRect = zombie.getBoundingClientRect();
+                    if (bRect.left < zRect.right && bRect.right > zRect.left && bRect.top < zRect.bottom && bRect.bottom > zRect.top) {
+                        zombie.health -= bullet.damage;
+                        bullet.remove();
+                        bullets.splice(index, 1);
+
+                        if (zombie.health <= 0) {
+                            zombie.remove();
+                            zombies.splice(zIndex, 1);
+                            coins += zombie.isBoss ? 100 : 10;
+                            coinsValue.textContent = coins;
+                        }
+                    }
+                });
+
+                // Remove bullet if it's out of bounds
+                if (parseFloat(bullet.style.left) < 0 || parseFloat(bullet.style.left) > 800 || parseFloat(bullet.style.top) < 0 || parseFloat(bullet.style.top) > 600) {
+                    bullet.remove();
+                    bullets.splice(index, 1);
+                }
+            });
+
+            // Update zombies
+            zombies.forEach((zombie) => {
+                const zX = parseFloat(zombie.style.left);
+                const zY = parseFloat(zombie.style.top);
+                const angle = Math.atan2(playerY - zY, playerX - zX);
+
+                zombie.style.left = `${zX + Math.cos(angle) * zombie.speed}px`;
+                zombie.style.top = `${zY + Math.sin(angle) * zombie.speed}px`;
+
+                // Check for collision with player
+                const pRect = player.getBoundingClientRect();
+                const zRect = zombie.getBoundingClientRect();
+                if (pRect.left < zRect.right && pRect.right > zRect.left && pRect.top < zRect.bottom && pRect.bottom > zRect.top) {
+                    health -= 1;
+                    healthValue.textContent = health;
+                    if (health <= 0) {
+                        endGame();
+                    }
+                }
+            });
+
+            // Check if round is complete
+            if (zombies.length === 0) {
+                startNextRound();
+            }
+
+            requestAnimationFrame(update);
+        }
+
+        function startNextRound() {
+            round++;
+            roundValue.textContent = round;
+            
+            if (round % 5 === 0) {
+                // Boss round
+                createZombie(true);
+            } else {
+                // Regular round
+                for (let i = 0; i < round * 2; i++) {
+                    createZombie();
+                }
+            }
+        }
+
+        function toggleShop() {
+            if (shop.style.display === 'block') {
+                shop.style.display = 'none';
+            } else {
+                shop.style.display = 'block';
+            }
+        }
+
+        document.querySelectorAll('.shop-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const weaponType = item.dataset.weapon;
+                const weapon = weapons[weaponType];
+                if (coins >= weapon.cost) {
+                    coins -= weapon.cost;
+                    coinsValue.textContent = coins;
+                    currentWeapon = weapon;
+                    currentWeaponDisplay.textContent = `Текущее оружие: ${weaponType === 'pistol' ? 'Старый пистолет' : (weaponType === 'shotgun' ? 'Дробовик' : (weaponType === 'machinegun' ? 'Автомат' : 'Снайперская винтовка'))}`;
+                } else {
+                    alert('Недостаточно монет!');
+                }
+            });
+        });
+
+        function endGame() {
+            isGameOver = true;
+            gameOverScreen.style.display = 'flex';
+            finalRound.textContent = round;
+            finalCoins.textContent = coins;
+        }
+
+        startNextRound();
+        update();
     </script>
 </body>
 </html>
