@@ -1,6 +1,15 @@
 let roomId;
 let messagesRef;
-let userName = 'Пользователь'; // Можно сделать ввод имени
+let userId;
+
+// Генерируем уникальный ID для пользователя
+function generateUserId() {
+  return 'user_' + Math.random().toString(36).substr(2, 9);
+}
+
+// Генерируем ID при загрузке страницы
+userId = generateUserId();
+console.log("Мой ID:", userId);
 
 document.getElementById("join-btn").onclick = () => {
   roomId = document.getElementById("room-id").value.trim();
@@ -15,10 +24,12 @@ document.getElementById("join-btn").onclick = () => {
   // Слушаем новые сообщения
   messagesRef.on("child_added", snapshot => {
     const data = snapshot.val();
-    displayMessage(data.sender + ": " + data.text, data.isOwn);
+    // Определяем, наше ли это сообщение
+    const isOwn = data.userId === userId;
+    displayMessage(data.sender + ": " + data.text, isOwn);
   });
   
-  displayMessage("Подключены к комнате: " + roomId, true);
+  displayMessage("Вы подключились к комнате: " + roomId, true);
   document.getElementById("message-input").focus();
 };
 
@@ -38,9 +49,9 @@ function sendMessage() {
   if (msg && messagesRef) {
     messagesRef.push({
       text: msg,
-      sender: userName,
-      timestamp: Date.now(),
-      isOwn: true // Помечаем свои сообщения
+      sender: "Пользователь",
+      userId: userId, // Добавляем ID пользователя
+      timestamp: firebase.database.ServerValue.TIMESTAMP
     });
     document.getElementById("message-input").value = "";
   }
