@@ -15,7 +15,6 @@ function saveUserId(id) {
     console.log("User ID saved to localStorage");
   } catch (e) {
     console.error("Failed to save User ID to localStorage", e);
-    // В крайнем случае можно использовать куки или другие методы
   }
 }
 
@@ -41,12 +40,16 @@ window.addEventListener('DOMContentLoaded', () => {
     saveUserId(userId);
   }
   console.log("Мой ID:", userId);
-  document.getElementById('user-id-display').textContent = userId;
-
+  
   userName = localStorage.getItem('chat_userName');
   if (userName) {
     document.getElementById('user-name-input').value = userName;
     showChatScreen();
+  }
+  
+  // Обновляем отображение ID после его загрузки/генерации
+  if (document.getElementById('user-id-display')) {
+    document.getElementById('user-id-display').textContent = userId;
   }
 });
 
@@ -61,6 +64,10 @@ document.getElementById("save-name-btn").onclick = () => {
     localStorage.setItem('chat_userName', userName);
   } catch (e) {
     console.error("Failed to save user name to localStorage", e);
+  }
+  // Обновляем отображение ID
+  if (document.getElementById('user-id-display')) {
+    document.getElementById('user-id-display').textContent = userId;
   }
   showChatScreen();
 };
@@ -123,4 +130,4 @@ function displayMessage(msg, isOwn = false) {
   div.className = isOwn ? "message own" : "message";
   messagesDiv.appendChild(div);
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
-}
+  }
