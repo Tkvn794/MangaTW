@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<title>MiniCraft — 2D single-file clone</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  html,body{height:100%;margin:0;background:#111;display:flex;align-items:center;justify-content:center;font-family:Arial,Helvetica,sans-serif;color:#ddd}
+  #game{background:#000;border:6px solid #222;box-shadow:0 6px 30px rgba(0,0,0,.7)}
+  canvas{display:block}
+  #info{width:640px;margin-top:8px;text-align:center;color:#bbb;font-size:13px}
+  .hud{position:fixed;right:14px;top:14px;background:rgba(0,0,0,.5);padding:8px;border-radius:6px}
+</style>
+</head>
+<body>
+  <div style="text-align:center">
+    <div id="game"><canvas id="c" width="640" height="480"></canvas></div>
+    <div id="info">WASD — движение · ЛКМ/ПКМ — взаимодействие · 1-5 — инвентарь · R — воскресить босса</div>
+  </div>
+  <div class="hud" id="hud"></div>
+
+<script>
+/* ===== MiniCraft 2D — Single HTML file =====
+   Simplified tile-based survival: blocks, food, mobs, boss, weapons.
+*/
+
+// Constants
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const TILE = 32;
+const MAP_W = Math.ceil(W / TILE);
+const MAP_H = Math.ceil(H / TILE);
+const rnd = (a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,typeof b==='undefined'?a:b));
+
+// Block types
+const BLOCKS = {
+  0: {name:'air', color:'#0000', breakable:false},
+  1: {name:'dirt', color:'#6b4f2b', breakable:true, hp:1},
+  2: {name:'grass', color:'#3aa047', breakable:true, hp:1},
+  3: {name:'stone', color:'#7f8c8d', breakable:true, hp:3},
+  4: {name:'wood', color:'#8b5a2b', breakable:true, hp:2},
+  5: {name:'leaf', color:'#2e8b3a', breakable:true, hp:1}
+};
+
+// Inventory slots: 0..3 blocks/food, 4 weapon
+let inventory = [
+  {type:1, name:'Dirt', count:20},
+  {type:2, name:'Grass', count:10},
+  {type:4, name:'Wood', count:8},
+  {type:'apple', name:'Apple', count:3},
+  {type:'sword', name:'Sword', count:1},
+];
+let selSlot = 0;
+
+// World generation
+let map = [];
+for(let y=0;y<MAP_H;y++){
+  map[y]=[];
+  for(let x=0;x<MAP_W;x++){
+    if(y>MAP_H/2 + Math.sin(x/3)*2) {
+      // underground
+      map[y][x] = (Math.random()<0.07?3:1);
+    } else if(y === Math.floor(MAP_H/2 + Math.random()*1.2)) {
+      map[y][x] = 2; // grass
+    } else if(y < MAP_H/2) {
+      map[y][x] = 0; // air
+    } else {
+      map[y][x] = 1;
+    }
+    // trees
+    if(map[y][x]===2 && Math.random()<0.06){
+      map[y-1] = map[y-1]||[];
+      map[y-1][x]=4;
+      for(let ly=-2;ly<=0;ly++){
+        for(let lx=-1;lx<=1;lx++){
+          if(Math.random()<0.9) (map[y+ly-2] = map[y+ly-2]||[])[x+lx]=5;
+        }
+      }
+    }
+  }
+}
+
+// Player
+let player = {
+  x: Math.floor(MAP_W/2)+0.5,
+  y: Math.floor(MAP_H/2)-3,
+  px:0,py:0,
+  hp: 20,
+  maxHp:20,
+  hunger: 20,
+  maxHunger:20,
+  speed: 4,
+  facing:0,
+  swingCooldown:0,
+  arrowCooldown:0
+};
+
+// Mobs
+let mobs = [];
+function spawnMob(type,x,y){
+  let m = {id:Date.now()+Math.random(),type,x,y,hp: type==='zombie'?6:4, vx:0,vy:0};
+  if(type==='boss'){ m.hp=50; m.size=1.8; }
+  mobs.push(m);
+}
+for(let i=0;i<6;i++){
+  spawnMob(Math.random()<0.2?'spider':'zombie', rnd(2,MAP_W-3), rnd(2,MAP_H-4));
+}
+let boss = null;
+function spawnBoss(){
+  boss = {id:'boss',type:'boss',x: rnd(3,MAP_W-4), y: rnd(3,MAP_H-6), hp:50, vx:0,vy:0};
+  mobs.push(boss);
+}
+spawnBoss();
+
+// Projectiles (arrows)
+let projectiles = [];
+
+// Input
+let keys = {};
+window.addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;
+  if(e.key==='1') selSlot=0;
+  if(e.key==='2') selSlot=1;
+  if(e.key==='3') selSlot=2;
+  if(e.key==='4') selSlot=3;
+  if(e.key==='5') selSlot=4;
+  if(e.key.toLowerCase()==='r'){ // respawn boss
+    if(!boss) spawnBoss();
+  }
+  if(e.key.toLowerCase()==='h'){ hudShow = !hudShow; }
+});
+window.addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false});
+
+// Mouse
+let mouse = {x:0,y:0,down:false};
+canvas.addEventListener('mousemove',e=>{
+  const r = canvas.getBoundingClientRect();
+  mouse.x = (e.clientX - r.left);
+  mouse.y = (e.clientY - r.top);
+});
+canvas.addEventListener('mousedown',e=>{
+  mouse.down = true;
+  handleClick(e.button);
+});
+canvas.addEventListener('mouseup',()=>mouse.down=false);
+
+// Utility
+function tileAt(tx,ty){ if(tx<0||ty<0||tx>=MAP_W||ty>=MAP_H) return 0; return map[ty][tx]||0; }
+function setTile(tx,ty,v){ if(tx<0||ty<0||tx>=MAP_W||ty>=MAP_H) return; map[ty][tx]=v; }
+
+// Break/place logic: if clicking near tile -> break or place
+let breaking = {tx:-1,ty:-1,progress:0,need:0};
+
+// Game loop
+let last = performance.now();
+let hudShow = true;
+function loop(t){
+  const dt = Math.min(0.05,(t-last)/1000);
+  last = t;
+  update(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// Update
+function update(dt){
+  // Player movement
+  let dx=0, dy=0;
+  if(keys['w']) dy -= 1;
+  if(keys['s']) dy += 1;
+  if(keys['a']) dx -= 1;
+  if(keys['d']) dx += 1;
+  const len = Math.hypot(dx,dy) || 1;
+  player.x += (dx/len) * player.speed * dt;
+  player.y += (dy/len) * player.speed * dt;
+  player.x = clamp(player.x, 0.1, MAP_W-0.1);
+  player.y = clamp(player.y, 0.1, MAP_H-0.1);
+
+  // Facing angle toward mouse
+  player.facing = Math.atan2(mouse.y - H/2, mouse.x - W/2);
+
+  // Hunger drain
+  player.hunger = Math.max(0, player.hunger - dt*0.2);
+  if(player.hunger<=0) player.hp = Math.max(0, player.hp - dt*2);
+
+  // Swing cooldowns
+  player.swingCooldown = Math.max(0, player.swingCooldown - dt);
+  player.arrowCooldown = Math.max(0, player.arrowCooldown - dt);
+
+  // Handle mouse action continuous (mining/attack)
+  if(mouse.down){
+    if(selSlot===4){
+      // weapon
+      if(inventory[4] && inventory[4].type==='sword' && player.swingCooldown<=0){
+        meleeAttack();
+        player.swingCooldown = 0.35;
+      } else if(inventory[4] && inventory[4].type==='bow' && player.arrowCooldown<=0){
+        shootArrow();
+        player.arrowCooldown = 0.5;
+      } else if(inventory[4] && inventory[4].type==='spear' && player.swingCooldown<=0){
+        meleeAttack(2.2);
+        player.swingCooldown = 0.6;
+      }
+    } else {
+      // mining or place
+      const tx = Math.floor(player.x + (mouse.x - W/2)/TILE);
+      const ty = Math.floor(player.y + (mouse.y - H/2)/TILE);
+      if(tx>=0 && ty>=0 && tx<MAP_W && ty<MAP_H){
+        const b = tileAt(tx,ty);
+        if(b!==0){
+          // start or continue breaking
+          if(breaking.tx!==tx || breaking.ty!==ty){
+            breaking.tx=tx; breaking.ty=ty; breaking.progress=0;
+            breaking.need = BLOCKS[b].hp || 1;
+          }
+          breaking.progress += dt*1.7;
+          if(breaking.progress >= breaking.need){
+            // drop item
+            const type = b;
+            addToInventory(type,1);
+            setTile(tx,ty,0);
+            breaking.progress = 0;
+            breaking.tx = breaking.ty = -1;
+          }
+        } else {
+          // place if holding block
+          const slot = inventory[selSlot];
+          if(slot && typeof slot.type==='number' && slot.count>0){
+            // can't place inside player
+            if(!(Math.abs(tx - player.x)<0.7 && Math.abs(ty - player.y)<0.7)){
+              setTile(tx,ty,slot.type);
+              slot.count--;
+              if(slot.count<=0) inventory[selSlot]=null;
+            }
+          }
+        }
+      }
+    }
+  } else {
+    breaking.progress = 0; breaking.tx = breaking.ty = -1;
+  }
+
+  // Update projectiles
+  for(let i=projectiles.length-1;i>=0;i--){
+    const p = projectiles[i];
+    p.x += p.vx*dt;
+    p.y += p.vy*dt;
+    p.life -= dt;
+    // hit mobs?
+    for(let j=mobs.length-1;j>=0;j--){
+      const m = mobs[j];
+      if(Math.hypot(m.x - p.x, m.y - p.y) < (m.size||0.6)){
+        m.hp -= p.dmg;
+        projectiles.splice(i,1);
+        if(m.hp<=0){ onMobDeath(m); mobs.splice(j,1); }
+        break;
+      }
+    }
+    if(p.life<=0) projectiles.splice(i,1);
+  }
+
+  // Mobs AI simple
+  for(let i=mobs.length-1;i>=0;i--){
+    const m = mobs[i];
+    let targetDist = Math.hypot(m.x - player.x, m.y - player.y);
+    let speed = (m.type==='spider')?2.5:1.3;
+    if(m.type==='boss') speed = 1.6;
+    if(targetDist < 6){
+      // chase
+      m.vx += ((player.x - m.x)/targetDist) * speed * dt * 0.9;
+      m.vy += ((player.y - m.y)/targetDist) * speed * dt * 0.9;
+      // attack if close
+      if(targetDist < (m.type==='boss'?1.4:0.9) && Math.random()<0.02){
+        // damage player
+        player.hp -= (m.type==='boss'?2:1);
+        player.hunger = Math.max(0, player.hunger - 0.4);
+      }
+    } else {
+      // wander
+      m.vx += (Math.sin(performance.now()/1000 + i) ) * dt*0.2;
+      m.vy += (Math.cos(performance.now()/1200 + i) ) * dt*0.2;
+    }
+    // friction and move
+    m.vx *= 0.92; m.vy *= 0.92;
+    m.x += m.vx*dt;
+    m.y += m.vy*dt;
+    // bounds
+    m.x = clamp(m.x,0.2,MAP_W-0.2); m.y = clamp(m.y,0.2,MAP_H-0.2);
+  }
+
+  // Player colliding with mobs (melee hit detection)
+  // also pick up drops (simple): if mob dies, they may drop apple/blocks handled in onMobDeath
+
+  // Health regen if fed and not in combat
+  if(player.hunger>10 && player.hp < player.maxHp && !isInCombat()){
+    player.hp += dt*0.8;
+  }
+
+  // Remove dead player? For simplicity, respawn at center
+  if(player.hp<=0){
+    // reset
+    player.hp = player.maxHp;
+    player.hunger = player.maxHunger;
+    player.x = Math.floor(MAP_W/2)+0.5;
+    player.y = Math.floor(MAP_H/2)-3;
+    // drop inventory some items
+    inventory = inventory.map(s => s? { ...s, count: Math.max(0, Math.floor(s.count/2)) } : null);
+  }
+
+  // HUD update
+  updateHUD();
+}
+
+function isInCombat(){
+  // near mobs
+  for(let m of mobs) if(Math.hypot(m.x-player.x,m.y-player.y) < 3) return true;
+  return false;
+}
+
+// Melee attack
+function meleeAttack(range=1.2){
+  const reach = range;
+  for(let i=mobs.length-1;i>=0;i--){
+    const m = mobs[i];
+    const dx = m.x - player.x, dy = m.y - player.y;
+    const dist = Math.hypot(dx,dy);
+    if(dist <= reach){
+      let dmg = 6;
+      // sword deals dmg; decrease mob hp
+      m.hp -= dmg;
+      if(m.hp<=0){ onMobDeath(m); mobs.splice(i,1); }
+      // small knockback
+      m.vx += dx/dist * 3;
+      m.vy += dy/dist * 3;
+    }
+  }
+}
+
+// Shoot arrow
+function shootArrow(){
+  const speed = 12;
+  const ang = player.facing;
+  const p = {x:player.x + Math.cos(ang)*0.6, y:player.y + Math.sin(ang)*0.6, vx:Math.cos(ang)*speed, vy:Math.sin(ang)*speed, life:3, dmg:4};
+  projectiles.push(p);
+}
+
+// When mob dies
+function onMobDeath(m){
+  // drop chance: apple or block
+  if(Math.random()<0.25) addToInventory('apple',1);
+  if(m.type==='boss'){
+    // big drop
+    addToInventory(4,6); // wood
+    addToInventory(3,5); // stone
+    boss = null;
+  } else {
+    // chance spawn more mobs
+    if(Math.random()<0.2) spawnMob('zombie', Math.floor(m.x), Math.floor(m.y));
+  }
+}
+
+// Add to inventory (stacking)
+function addToInventory(type, count){
+  // find same type
+  for(let i=0;i<inventory.length;i++){
+    const s=inventory[i];
+    if(s && s.type===type){ s.count += count; return; }
+  }
+  // try to place in first empty
+  for(let i=0;i<inventory.length;i++){
+    if(!inventory[i]){ inventory[i] = {type, name: (typeof type==='number'?BLOCKS[type].name:type), count}; return; }
+  }
+  // otherwise drop: ignore for simplicity
+}
+
+// Rendering
+function render(){
+  // clear
+  ctx.fillStyle = '#6aa0ff';
+  ctx.fillRect(0,0,W,H);
+
+  // Camera centered on player
+  const camX = player.x*TILE - W/2;
+  const camY = player.y*TILE - H/2;
+
+  // Draw tiles
+  for(let y=0;y<MAP_H;y++){
+    for(let x=0;x<MAP_W;x++){
+      const b = map[y][x]||0;
+      const sx = x*TILE - camX, sy = y*TILE - camY;
+      if(sx+TILE<0 || sx>W || sy+TILE<0 || sy>H) continue;
+      if(b===0) continue;
+      ctx.fillStyle = BLOCKS[b].color;
+      ctx.fillRect(Math.floor(sx)+1, Math.floor(sy)+1, TILE-2, TILE-2);
+      // small texture
+      ctx.strokeStyle = shade(BLOCKS[b].color,-20);
+      ctx.strokeRect(Math.floor(sx)+1, Math.floor(sy)+1, TILE-2, TILE-2);
+    }
+  }
+
+  // draw entities: mobs
+  for(let m of mobs){
+    const sx = m.x*TILE - camX, sy = m.y*TILE - camY;
+    ctx.save();
+    ctx.translate(sx,sy);
+    if(m.type==='zombie'){
+      drawMob(-8,-12,16,18,'#5f8a48');
+    } else if(m.type==='spider'){
+      drawMob(-10,-6,20,12,'#2d2d2d');
+    } else if(m.type==='boss'){
+      drawMob(-18,-22,36,44,'#990000');
+    }
+    // health bar
+    ctx.fillStyle = 'red';
+    let maxhp = (m.type==='boss'?50: (m.type==='zombie'?6:4));
+    ctx.fillRect(-16, -26, 32*(m.hp/maxhp), 4);
+    ctx.restore();
+  }
+
+  // projectiles
+  for(let p of projectiles){
+    const sx = p.x*TILE - camX, sy = p.y*TILE - camY;
+    ctx.fillStyle = '#c38';
+    ctx.beginPath();
+    ctx.arc(sx,sy,4,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  // draw player in center
+  ctx.save();
+  ctx.translate(W/2, H/2);
+  // body
+  ctx.fillStyle = '#ffd27f';
+  ctx.fillRect(-8,-12,16,18);
+  // weapon direction indicator
+  ctx.translate(Math.cos(player.facing)*8, Math.sin(player.facing)*8);
+  ctx.fillStyle = '#b5651d';
+  ctx.fillRect(-3,-3,8,6);
+  ctx.restore();
+
+  // cursor crosshair
+  ctx.strokeStyle = '#fff';
+  ctx.beginPath();
+  ctx.moveTo(W/2, H/2);
+  ctx.lineTo(mouse.x, mouse.y);
+  ctx.stroke();
+
+  // breaking overlay
+  if(breaking.tx>=0){
+    const sx = breaking.tx*TILE - camX, sy = breaking.ty*TILE - camY;
+    ctx.strokeStyle = '#fffb';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(sx+2, sy+2, TILE-4, TILE-4);
+    // progress
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(sx+2, sy + TILE - 6, (TILE-4)*(breaking.progress/breaking.need), 4);
+    ctx.lineWidth = 1;
+  }
+
+  // HUD
+  if(hudShow){
+    drawHUD();
+  }
+}
+
+// Helpers for drawing mob
+function drawMob(x,y,w,h,color){
+  ctx.fillStyle = color;
+  ctx.fillRect(x,y,w,h);
+  ctx.fillStyle = shade(color,-25);
+  ctx.fillRect(x+2,y+2,w-4, h-6);
+}
+
+// Shade a hex color
+function shade(hex, percent){
+  try{
+    hex = hex.replace('#','');
+    let r = parseInt(hex.substring(0,2),16);
+    let g = parseInt(hex.substring(2,4),16);
+    let b = parseInt(hex.substring(4,6),16);
+    r = Math.min(255, Math.max(0, r + percent));
+    g = Math.min(255, Math.max(0, g + percent));
+    b = Math.min(255, Math.max(0, b + percent));
+    return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+  }catch(e){return hex;}
+}
+
+// HUD draw
+function drawHUD(){
+  const hudW=220, hudH=90;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(8,8,hudW,hudH);
+  ctx.strokeStyle = '#444';
+  ctx.strokeRect(8,8,hudW,hudH);
+  ctx.fillStyle = '#fff';
+  ctx.font = '12px Arial';
+
+  // HP
+  ctx.fillStyle = '#f55';
+  ctx.fillRect(18,18, (hudW-36) * (player.hp/player.maxHp), 10);
+  ctx.fillStyle = '#fff';
+  ctx.fillText('HP: '+Math.floor(player.hp)+' / '+player.maxHp, 18, 36);
+
+  // Hunger
+  ctx.fillStyle = '#ffb347';
+  ctx.fillRect(18,44, (hudW-36) * (player.hunger/player.maxHunger), 8);
+  ctx.fillStyle = '#fff';
+  ctx.fillText('Hunger: '+Math.floor(player.hunger)+' / '+player.maxHunger, 18, 64);
+
+  // Inventory slots
+  ctx.fillStyle = '#ddd';
+  ctx.fillText('Inventory (1-5 select):', 18, 82);
+
+  // draw small slots
+  for(let i=0;i<5;i++){
+    const sx = 18 + i*38;
+    ctx.strokeStyle = (selSlot===i)?'#fff':'#666';
+    ctx.strokeRect(sx,92,34,34);
+    const s = inventory[i];
+    if(s){
+      ctx.fillStyle = '#fff';
+      // Draw icon: blocks as rects, apple as red circle, sword as line
+      if(typeof s.type==='number'){
+        ctx.fillStyle = BLOCKS[s.type].color;
+        ctx.fillRect(sx+6, 96+6, 22, 22);
+      } else if(s.type==='apple'){
+        ctx.fillStyle = '#d22';
+        ctx.beginPath(); ctx.arc(sx+18, 96+17,10,0,Math.PI*2); ctx.fill();
+      } else if(s.type==='sword'){
+        ctx.fillStyle = '#bbb';
+        ctx.fillRect(sx+10, 96+8, 12,5);
+        ctx.fillStyle = '#8b5a2b'; ctx.fillRect(sx+15, 96+13,6,8);
+      } else if(s.type==='bow'){
+        ctx.fillStyle = '#8b5a2b';
+        ctx.beginPath(); ctx.arc(sx+18, 96+17,9,Math.PI/6,-Math.PI/6);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#fff';
+      ctx.font='11px Arial';
+      ctx.fillText(s.count, sx+20, 96+30);
+    }
+  }
+}
+
+// HUD DOM element for text info
+function updateHUD(){
+  const el = document.getElementById('hud');
+  el.innerHTML = `HP: ${Math.floor(player.hp)} · Hunger: ${Math.floor(player.hunger)} · Mobs: ${mobs.length} · Boss: ${boss? 'Alive':'Dead'}`;
+}
+
+// Handle click immediate (for quick actions)
+function handleClick(button){
+  // left button = 0, right = 2
+  if(button===2){
+    // right-click: place selected block at mouse tile
+    const tx = Math.floor(player.x + (mouse.x - W/2)/TILE);
+    const ty = Math.floor(player.y + (mouse.y - H/2)/TILE);
+    const slot = inventory[selSlot];
+    if(slot && typeof slot.type==='number' && slot.count>0){
+      if(!(Math.abs(tx - player.x)<0.7 && Math.abs(ty - player.y)<0.7)){
+        setTile(tx,ty,slot.type);
+        slot.count--;
+        if(slot.count<=0) inventory[selSlot]=null;
+      }
+    } else if(slot && slot.type==='apple'){
+      // eat
+      eatFood(selSlot);
+    }
+    return;
+  }
+  // left click: if weapon selected, handled in update via mouse.down continuous (melee)
+  // but process quick apple usage if left-click and slot is apple
+  const slot = inventory[selSlot];
+  if(slot && slot.type==='apple'){
+    eatFood(selSlot);
+  }
+}
+
+// Eat food
+function eatFood(slotIndex){
+  const s = inventory[slotIndex];
+  if(!s) return;
+  if(s.type==='apple'){
+    player.hunger = Math.min(player.maxHunger, player.hunger + 8);
+    player.hp = Math.min(player.maxHp, player.hp + 4);
+    s.count--; if(s.count<=0) inventory[slotIndex]=null;
+  }
+}
+
+// Simple UI text
+updateHUD();
+
+/* Extras: allow keyboard to pick up blocks near player for convenience */
+window.addEventListener('keydown', e=>{
+  if(e.key.toLowerCase()==='e'){ // pick block under mouse to inventory
+    const tx = Math.floor(player.x + (mouse.x - W/2)/TILE);
+    const ty = Math.floor(player.y + (mouse.y - H/2)/TILE);
+    const b = tileAt(tx,ty);
+    if(b && b!==0) addToInventory(b,1);
+  }
+});
+
+// Prevent context menu on right click inside canvas
+canvas.addEventListener('contextmenu', e=>e.preventDefault());
+
+</script>
+</body>
+</html>
