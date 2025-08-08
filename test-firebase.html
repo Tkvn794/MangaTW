@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Тест Firebase</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+</head>
+<body>
+    <h1>Тест Firebase Database</h1>
+    <div id="status">Статус: Проверка...</div>
+    <div>
+        <input type="text" id="test-message" placeholder="Введите тестовое сообщение">
+        <button onclick="sendMessage()">Отправить</button>
+    </div>
+    <div id="messages"></div>
+
+    <script>
+        // Конфигурация Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCfzfqOEXyO4f9w_WHfb5ba6VucR4C1h7Q",
+            authDomain: "webrtc-chat-d4b03.firebaseapp.com",
+            databaseURL: "https://webrtc-chat-d4b03-default-rtdb.firebaseio.com/",
+            projectId: "webrtc-chat-d4b03",
+            storageBucket: "webrtc-chat-d4b03.firebasestorage.app",
+            messagingSenderId: "664462632968",
+            appId: "1:664462632968:web:5908950ee288dde239c9bd"
+        };
+
+        try {
+            // Инициализация Firebase
+            firebase.initializeApp(firebaseConfig);
+            document.getElementById('status').innerHTML += '<br>✅ Firebase инициализирован';
+            
+            // Получение ссылки на базу данных
+            const db = firebase.database();
+            const testRef = db.ref('test_messages');
+            
+            document.getElementById('status').innerHTML += '<br>✅ Подключение к базе данных установлено';
+            
+            // Слушаем сообщения
+            testRef.on('child_added', (snapshot) => {
+                const data = snapshot.val();
+                const messagesDiv = document.getElementById('messages');
+                messagesDiv.innerHTML += `<div><strong>${data.sender}:</strong> ${data.text} <small>(${new Date(data.timestamp).toLocaleTimeString()})</small></div>`;
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                document.getElementById('status').innerHTML += '<br>📥 Получено сообщение';
+            });
+            
+            document.getElementById('status').innerHTML += '<br>✅ Слушатель сообщений установлен';
+            
+        } catch (error) {
+            document.getElementById('status').innerHTML += '<br>❌ Ошибка: ' + error.message;
+            console.error('Ошибка Firebase:', error);
+        }
+        
+        function sendMessage() {
+            try {
+                const message = document.getElementById('test-message').value;
+                if (!message.trim()) return;
+                
+                const db = firebase.database();
+                const testRef = db.ref('test_messages');
+                
+                testRef.push({
+                    text: message,
+                    sender: 'Тестовый пользователь',
+                    timestamp: Date.now()
+                });
+                
+                document.getElementById('test-message').value = '';
+                document.getElementById('status').innerHTML += '<br>📤 Сообщение отправлено';
+                
+            } catch (error) {
+                document.getElementById('status').innerHTML += '<br>❌ Ошибка отправки: ' + error.message;
+                console.error('Ошибка отправки:', error);
+            }
+        }
+    </script>
+</body>
+</html>
