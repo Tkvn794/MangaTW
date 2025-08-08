@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Space Runner</title>
+  <style>
+    /* Стили */
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+      background: #111;
+      color: #fff;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    canvas {
+      display: block;
+      margin: 0 auto;
+    }
+
+    #ui {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 18px;
+      z-index: 10;
+    }
+
+    #menu {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: rgba(0,0,0,0.8);
+      z-index: 20;
+    }
+
+    button {
+      margin: 10px;
+      padding: 10px 20px;
+      font-size: 18px;
+      cursor: pointer;
+      background: #333;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+    }
+
+    button:hover {
+      background: #555;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 600px) {
+      button {
+        width: 80%;
+        padding: 15px;
+        font-size: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+<div id="ui">Очки: <span id="score">0</span> | Здоровье: <span id="health">100</span></div>
+
+<div id="menu" class="menu-screen">
+  <h1>Space Runner</h1>
+  <button id="startBtn">Начать игру</button>
+  <button id="settingsBtn">Настройки</button>
+  <button id="achievementsBtn">Достижения</button>
+</div>
+
+<div id="settingsMenu" class="hidden menu-screen">
+  <h2>Настройки</h2>
+  <label><input type="checkbox" id="soundToggle"> Звук</label><br>
+  <label>Сложность: 
+    <select id="difficultySelect">
+      <option value="easy">Легкий</option>
+      <option value="hard">Сложный</option>
+    </select>
+  </label><br>
+  <label>Чувствительность: <input type="range" id="sensitivitySlider" min="1" max="10" value="5"></label><br>
+  <label>Тема:
+    <select id="themeSelect">
+      <option value="dark">Темная</option>
+      <option value="light">Светлая</option>
+    </select>
+  </label><br>
+  <button id="backFromSettings">Назад</button>
+</div>
+
+<div id="achievementsMenu" class="hidden menu-screen">
+  <h2>Достижения</h2>
+  <ul id="achievementsList"></ul>
+  <button id="backFromAchievements">Назад</button>
+</div>
+
+<div id="gameOverScreen" class="hidden menu-screen">
+  <h2>Игра окончена</h2>
+  <p>Ваш счёт: <span id="finalScore">0</span></p>
+  <button id="restartBtn">Играть снова</button>
+  <button id="menuBtn">В меню</button>
+</div>
+
+<script>
+/**
+ * Space Runner — аркадная игра на HTML5 Canvas.
+ * Управление: WASD / стрелки / мышь / сенсор.
+ * Цель: собирать бонусы, избегать врагов, набирать очки.
+ */
+
+// === ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ===
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let gameWidth = window.innerWidth;
+let gameHeight = window.innerHeight;
+canvas.width = gameWidth;
+canvas.height = gameHeight;
+
+let gameState = 'menu'; // menu, playing, paused, gameOver
+let score = 0;
+let health = 100;
+let bestScore = localStorage.getItem('bestScore') || 0;
+let settings = JSON.parse(localStorage.getItem('settings')) || {
+  sound: true,
+  difficulty: 'easy',
+  sensitivity: 5,
+  theme: 'dark'
+};
+
+let achievements = JSON.parse(localStorage.getItem('achievements')) || {
+  first100: false,
+  first500: false,
+  survive1000: false,
+  collect50: false
+};
+
+// === ИГРОВЫЕ ОБЪЕКТЫ ===
+let player = {
+  x: 100,
+  y: gameHeight / 2,
+  width: 40,
+  height: 40,
+  speed: 5
+};
+
+let enemies = [];
+let bonuses = [];
+let particles = [];
+
+// === ЗВУКИ (синтезированные) ===
+function playSound(freq, duration) {
+  if (!settings.sound) return;
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const oscillator = audioCtx.createOscillator();
+  const gainNode = audioCtx.createGain();
+  oscillator.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+  oscillator.type = 'square';
+  oscillator.frequency.value = freq;
+  gainNode.gain.value = 0.1;
+  oscillator.start();
+  setTimeout(() => {
+    oscillator.stop();
+  }, duration);
+}
+
+// === ИНИЦИАЛИЗАЦИЯ ИГРЫ ===
+function initGame() {
+  player.x = 100;
+  player.y = gameHeight / 2;
+  score = 0;
+  health = 100;
+  enemies = [];
+  bonuses = [];
+  particles = [];
+  document.getElementById('score').textContent = score;
+  document.getElementById('health').textContent = health;
+  gameState = 'playing';
+}
+
+// === ОБНОВЛЕНИЕ ИГРЫ ===
+function update() {
+  if (gameState !== 'playing') return;
+
+  // Движение игрока
+  if (keys['ArrowUp'] || keys['KeyW']) player.y -= player.speed;
+  if (keys['ArrowDown'] || keys['KeyS']) player.y += player.speed;
+  if (keys['ArrowLeft'] || keys['KeyA']) player.x -= player.speed;
+  if (keys['ArrowRight'] || keys['KeyD']) player.x += player.speed;
+
+  // Границы
+  if (player.x < 0) player.x = 0;
+  if (player.y < 0) player.y = 0;
+  if (player.x + player.width > gameWidth) player.x = gameWidth - player.width;
+  if (player.y + player.height > gameHeight) player.y = gameHeight - player.height;
+
+  // Создание врагов
+  if (Math.random() < (settings.difficulty === 'hard' ? 0.05 : 0.02)) {
+    enemies.push({
+      x: gameWidth,
+      y: Math.random() * (gameHeight - 40),
+      width: 30,
+      height: 30,
+      speed: settings.difficulty === 'hard' ? 6 : 4
+    });
+  }
+
+  // Создание бонусов
+  if (Math.random() < 0.01) {
+    bonuses.push({
+      x: gameWidth,
+      y: Math.random() * (gameHeight - 30),
+      width: 20,
+      height: 20,
+      speed: 3
+    });
+  }
+
+  // Обновление врагов
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    e.x -= e.speed;
+    if (e.x + e.width < 0) {
+      enemies.splice(i, 1);
+      continue;
+    }
+
+    // Проверка столкновения с игроком
+    if (
+      player.x < e.x + e.width &&
+      player.x + player.width > e.x &&
+      player.y < e.y + e.height &&
+      player.y + player.height > e.y
+    ) {
+      enemies.splice(i, 1);
+      health -= 10;
+      document.getElementById('health').textContent = health;
+      playSound(200, 100);
+      createParticles(e.x, e.y, 'red');
+      if (health <= 0) {
+        gameOver();
+      }
+    }
+  }
+
+  // Обновление бонусов
+  for (let i = bonuses.length - 1; i >= 0; i--) {
+    const b = bonuses[i];
+    b.x -= b.speed;
+    if (b.x + b.width < 0) {
+      bonuses.splice(i, 1);
+      continue;
+    }
+
+    if (
+      player.x < b.x + b.width &&
+      player.x + player.width > b.x &&
+      player.y < b.y + b.height &&
+      player.y + player.height > b.y
+    ) {
+      bonuses.splice(i, 1);
+      score += 10;
+      document.getElementById('score').textContent = score;
+      playSound(600, 100);
+      createParticles(b.x, b.y, 'green');
+
+      // Достижения
+      if (score >= 100 && !achievements.first100) {
+        achievements.first100 = true;
+        saveAchievements();
+      }
+      if (score >= 500 && !achievements.first500) {
+        achievements.first500 = true;
+        saveAchievements();
+      }
+      if (score >= 1000 && !achievements.survive1000) {
+        achievements.survive1000 = true;
+        saveAchievements();
+      }
+    }
+  }
+
+  // Обновление частиц
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life--;
+    if (p.life <= 0) {
+      particles.splice(i, 1);
+    }
+  }
+
+  // Проверка достижений
+  if (score > bestScore) {
+    bestScore = score;
+    localStorage.setItem('bestScore', bestScore);
+  }
+}
+
+// === ОТРИСОВКА ===
+function draw() {
+  ctx.clearRect(0, 0, gameWidth, gameHeight);
+
+  // Фон
+  ctx.fillStyle = settings.theme === 'light' ? '#eee' : '#111';
+  ctx.fillRect(0, 0, gameWidth, gameHeight);
+
+  if (gameState === 'playing') {
+    // Игрок
+    ctx.fillStyle = settings.theme === 'light' ? '#000' : '#0f0';
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+
+    // Враги
+    ctx.fillStyle = '#f00';
+    enemies.forEach(e => ctx.fillRect(e.x, e.y, e.width, e.height));
+
+    // Бонусы
+    ctx.fillStyle = '#0ff';
+    bonuses.forEach(b => ctx.fillRect(b.x, b.y, b.width, b.height));
+
+    // Частицы
+    particles.forEach(p => {
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = p.life / 30;
+      ctx.fillRect(p.x, p.y, 5, 5);
+      ctx.globalAlpha = 1;
+    });
+  }
+}
+
+// === СИСТЕМА ЧАСТИЦ ===
+function createParticles(x, y, color) {
+  for (let i = 0; i < 10; i++) {
+    particles.push({
+      x: x,
+      y: y,
+      vx: (Math.random() - 0.5) * 4,
+      vy: (Math.random() - 0.5) * 4,
+      color: color,
+      life: 30
+    });
+  }
+}
+
+// === ИГРОВОЙ ЦИКЛ ===
+function gameLoop() {
+  update();
+  draw();
+  if (gameState === 'playing') {
+    requestAnimationFrame(gameLoop);
+  }
+}
+
+// === УПРАВЛЕНИЕ ===
+const keys = {};
+window.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'Escape') togglePause();
+});
+window.addEventListener('keyup', e => {
+  keys[e.code] = false;
+});
+
+canvas.addEventListener('mousemove', e => {
+  if (gameState !== 'playing') return;
+  const rect = canvas.getBoundingClientRect();
+  const sensitivity = settings.sensitivity / 5;
+  player.x = (e.clientX - rect.left - player.width / 2) * sensitivity;
+  player.y = (e.clientY - rect.top - player.height / 2) * sensitivity;
+});
+
+// === МЕНЮ И НАВИГАЦИЯ ===
+document.getElementById('startBtn').addEventListener('click', () => {
+  document.getElementById('menu').classList.add('hidden');
+  initGame();
+  gameLoop();
+});
+
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('settingsMenu').classList.remove('hidden');
+});
+
+document.getElementById('achievementsBtn').addEventListener('click', () => {
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('achievementsMenu').classList.remove('hidden');
+  renderAchievements();
+});
+
+document.getElementById('backFromSettings').addEventListener('click', () => {
+  document.getElementById('settingsMenu').classList.add('hidden');
+  document.getElementById('menu').classList.remove('hidden');
+  saveSettings();
+});
+
+document.getElementById('backFromAchievements').addEventListener('click', () => {
+  document.getElementById('achievementsMenu').classList.add('hidden');
+  document.getElementById('menu').classList.remove('hidden');
+});
+
+document.getElementById('restartBtn').addEventListener('click', () => {
+  document.getElementById('gameOverScreen').classList.add('hidden');
+  initGame();
+  gameLoop();
+});
+
+document.getElementById('menuBtn').addEventListener('click', () => {
+  document.getElementById('gameOverScreen').classList.add('hidden');
+  document.getElementById('menu').classList.remove('hidden');
+});
+
+function togglePause() {
+  if (gameState === 'playing') {
+    gameState = 'paused';
+  } else if (gameState === 'paused') {
+    gameState = 'playing';
+    gameLoop();
+  }
+}
+
+function gameOver() {
+  gameState = 'gameOver';
+  document.getElementById('finalScore').textContent = score;
+  document.getElementById('gameOverScreen').classList.remove('hidden');
+}
+
+function saveSettings() {
+  settings.sound = document.getElementById('soundToggle').checked;
+  settings.difficulty = document.getElementById('difficultySelect').value;
+  settings.sensitivity = parseInt(document.getElementById('sensitivitySlider').value);
+  settings.theme = document.getElementById('themeSelect').value;
+  localStorage.setItem('settings', JSON.stringify(settings));
+}
+
+function saveAchievements() {
+  localStorage.setItem('achievements', JSON.stringify(achievements));
+}
+
+function renderAchievements() {
+  const list = document.getElementById('achievementsList');
+  list.innerHTML = '';
+  const ach = achievements;
+  const items = [
+    { key: 'first100', text: 'Набрать 100 очков' },
+    { key: 'first500', text: 'Набрать 500 очков' },
+    { key: 'survive1000', text: 'Набрать 1000 очков' },
+    { key: 'collect50', text: 'Собрать 50 бонусов (скоро)' }
+  ];
+  items.forEach(i => {
+    const li = document.createElement('li');
+    li.textContent = `${i.text} — ${ach[i.key] ? '✅' : '❌'}`;
+    list.appendChild(li);
+  });
+}
+
+// === ИНИЦИАЛИЗАЦИЯ НАСТРОЕК ===
+document.getElementById('soundToggle').checked = settings.sound;
+document.getElementById('difficultySelect').value = settings.difficulty;
+document.getElementById('sensitivitySlider').value = settings.sensitivity;
+document.getElementById('themeSelect').value = settings.theme;
+
+// === АДАПТИВНОСТЬ ===
+window.addEventListener('resize', () => {
+  gameWidth = window.innerWidth;
+  gameHeight = window.innerHeight;
+  canvas.width = gameWidth;
+  canvas.height = gameHeight;
+});
+
+// === ИНСТРУКЦИЯ ===
+/*
+Как играть:
+- Управляйте кораблём с помощью клавиш WASD или стрелок.
+- Или двигайте мышью (сенсором).
+- Избегайте красных врагов.
+- Собирайте синие бонусы для очков.
+- Игра заканчивается при нулевом здоровье.
+
+Горячие клавиши:
+- ESC — пауза/продолжить
+- Пробел — (не используется)
+- M — (не используется)
+*/
+
+</script>
+</body>
+</html>
