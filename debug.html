@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Debug Firebase Chat</title>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+</head>
+<body>
+  <h2>Debug Firebase Connection</h2>
+  <div id="status">Initializing...</div>
+  <br>
+  <input type="text" id="room-input" placeholder="Room ID (e.g., test123)">
+  <button id="join-btn">Join Room</button>
+  <br><br>
+  <input type="text" id="message-input" placeholder="Message">
+  <button id="send-btn">Send</button>
+  <br><br>
+  <h3>Messages:</h3>
+  <div id="messages" style="border:1px solid #ccc; padding:10px; min-height:200px;"></div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCfzfqOEXyO4f9w_WHfb5ba6VucR4C1h7Q",
+      authDomain: "webrtc-chat-d4b03.firebaseapp.com",
+      databaseURL: "https://webrtc-chat-d4b03-default-rtdb.firebaseio.com/",
+      projectId: "webrtc-chat-d4b03",
+      storageBucket: "webrtc-chat-d4b03.firebasestorage.app",
+      messagingSenderId: "664462632968",
+      appId: "1:664462632968:web:5908950ee288dde239c9bd"
+    };
+
+    let messagesRef;
+    let roomId;
+
+    try {
+      firebase.initializeApp(firebaseConfig);
+      document.getElementById('status').innerText += "\n✅ Firebase initialized.";
+      console.log("Firebase App:", firebase.app());
+    } catch (e) {
+      document.getElementById('status').innerText += "\n❌ Firebase init error: " + e.message;
+      console.error("Firebase init error:", e);
+    }
+
+    document.getElementById('join-btn').onclick = function() {
+      roomId = document.getElementById('room-input').value.trim();
+      if (!roomId) {
+        alert("Please enter a room ID");
+        return;
+      }
+
+      try {
+        const db = firebase.database();
+        messagesRef = db.ref(`messages/${roomId}`);
+        document.getElementById('status').innerText += `\n✅ Joined room: ${roomId}`;
+        console.log("Joined room ref:", messagesRef.toString());
+
+        // Listen for new messages
+        messagesRef.on('child_added', (snapshot) => {
+          const data = snapshot.val();
+          const msgDiv = document.createElement('div');
+          msgDiv.innerText = `[${new Date(data.timestamp || Date.now()).toLocaleTimeString()}] ${data.text || 'No text'}`;
+          document.getElementById('messages').appendChild(msgDiv);
+          document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+          document.getElementById('status').innerText += "\n📥 Message received";
+          console.log("Message received:", data);
+        }, (error) => {
+          document.getElementById('status').innerText += `\n❌ Error listening to messages: ${error.message}`;
+          console.error("Error listening to messages:", error);
+        });
+
+      } catch (e) {
+        document.getElementById('status').innerText += `\n❌ Error joining room: ${e.message}`;
+        console.error("Error joining room:", e);
+      }
+    };
+
+    document.getElementById('send-btn').onclick = function() {
+      const msg = document.getElementById('message-input').value.trim();
+      if (!msg) {
+        alert("Please enter a message");
+        return;
+      }
+      if (!messagesRef) {
+        alert("Please join a room first");
+        return;
+      }
+
+      try {
+        const messageData = {
+          text: msg,
+          timestamp: firebase.database.ServerValue.TIMESTAMP || Date.now()
+        };
+        messagesRef.push(messageData);
+        document.getElementById('message-input').value = '';
+        document.getElementById('status').innerText += "\n📤 Message sent";
+        console.log("Message sent:", messageData);
+      } catch (e) {
+        document.getElementById('status').innerText += `\n❌ Error sending message: ${e.message}`;
+        console.error("Error sending message:", e);
+      }
+    };
+  </script>
+</body>
+</html>
