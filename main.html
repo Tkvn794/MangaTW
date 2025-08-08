@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Чат по ID комнаты</title>
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Подключение Firebase SDK (Compat версия) -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+  
+  <!-- Инициализация Firebase -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCfzfqOEXyO4f9w_WHfb5ba6VucR4C1h7Q",
+      authDomain: "webrtc-chat-d4b03.firebaseapp.com",
+      databaseURL: "https://webrtc-chat-d4b03-default-rtdb.firebaseio.com/",
+      projectId: "webrtc-chat-d4b03",
+      storageBucket: "webrtc-chat-d4b03.firebasestorage.app",
+      messagingSenderId: "664462632968",
+      appId: "1:664462632968:web:5908950ee288dde239c9bd"
+    };
+
+    // Инициализация Firebase (Compat версия)
+    firebase.initializeApp(firebaseConfig);
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h1>Чат по ID комнаты</h1>
+    <input type="text" id="room-id" placeholder="Введите ID комнаты">
+    <button id="join-btn">Присоединиться</button>
+
+    <div id="chat" style="display: none;">
+      <div id="messages"></div>
+      <input type="text" id="message-input" placeholder="Введите сообщение">
+      <button id="send-btn">Отправить</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
